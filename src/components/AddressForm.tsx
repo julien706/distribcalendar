@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
@@ -16,8 +16,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { ScrollArea } from "./ui/scroll-area";
+import { Separator } from "./ui/separator";
 import { toast } from "sonner";
 import { STATUS_CONFIG } from "@/lib/statusConfig";
+import { History, ArrowRight } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 type Address = {
   id: string;
@@ -27,6 +33,15 @@ type Address = {
   longitude: number;
   status: string;
   observations: string | null;
+};
+
+type StatusHistory = {
+  id: string;
+  old_status: string | null;
+  new_status: string;
+  changed_at: string;
+  old_observations: string | null;
+  new_observations: string | null;
 };
 
 const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
@@ -49,6 +64,32 @@ export default function AddressForm({
   );
   const [observations, setObservations] = useState(address?.observations || "");
   const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState<StatusHistory[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (address && open) {
+      setStatus((address.status as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited") || "pending");
+      setObservations(address.observations || "");
+      fetchHistory();
+    }
+  }, [address, open]);
+
+  const fetchHistory = async () => {
+    if (!address) return;
+    
+    setLoadingHistory(true);
+    const { data, error } = await supabase
+      .from("address_status_history")
+      .select("*")
+      .eq("address_id", address.id)
+      .order("changed_at", { ascending: false });
+
+    if (!error && data) {
+      setHistory(data);
+    }
+    setLoadingHistory(false);
+  };
 
   const handleSave = async () => {
     if (!address) return;
@@ -77,7 +118,7 @@ export default function AddressForm({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
             {address.street_number || ""} {address.street_name}
@@ -87,44 +128,105 @@ export default function AddressForm({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Statut</label>
-            <Select 
-              value={status} 
-              onValueChange={(value) => setStatus(value as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited")}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((option) => {
-                  const Icon = option.icon;
-                  return (
-                    <SelectItem key={option.value} value={option.value}>
-                      <span className="flex items-center gap-2">
-                        <Icon className="h-4 w-4" />
-                        {option.label}
-                      </span>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
+        <ScrollArea className="flex-1 pr-4">
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Statut</label>
+              <Select 
+                value={status} 
+                onValueChange={(value) => setStatus(value as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((option) => {
+                    const Icon = option.icon;
+                    return (
+                      <SelectItem key={option.value} value={option.value}>
+                        <span className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          {option.label}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Observations</label>
-            <Textarea
-              placeholder="Notes, commentaires..."
-              value={observations}
-              onChange={(e) => setObservations(e.target.value)}
-              rows={4}
-            />
-          </div>
-        </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Observations</label>
+              <Textarea
+                placeholder="Notes, commentaires..."
+                value={observations}
+                onChange={(e) => setObservations(e.target.value)}
+                rows={4}
+              />
+            </div>
 
-        <div className="flex justify-end gap-2">
+            {history.length > 0 && (
+              <>
+                <Separator className="my-4" />
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <History className="h-4 w-4" />
+                      Historique des modifications
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingHistory ? (
+                      <p className="text-sm text-muted-foreground">Chargement...</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {history.map((entry, index) => {
+                          const oldConfig = entry.old_status ? STATUS_CONFIG[entry.old_status as keyof typeof STATUS_CONFIG] : null;
+                          const newConfig = STATUS_CONFIG[entry.new_status as keyof typeof STATUS_CONFIG];
+                          const OldIcon = oldConfig?.icon;
+                          const NewIcon = newConfig?.icon;
+
+                          return (
+                            <div key={entry.id} className="text-sm">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-2">
+                                  {oldConfig && OldIcon && (
+                                    <>
+                                      <span className="flex items-center gap-1 text-muted-foreground">
+                                        <OldIcon className="h-3 w-3" />
+                                        {oldConfig.label}
+                                      </span>
+                                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                                    </>
+                                  )}
+                                  <span className="flex items-center gap-1 font-medium">
+                                    <NewIcon className="h-3 w-3" />
+                                    {newConfig.label}
+                                  </span>
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(entry.changed_at), "dd MMM yyyy HH:mm", { locale: fr })}
+                                </span>
+                              </div>
+                              {(entry.new_observations && entry.new_observations !== entry.old_observations) && (
+                                <p className="text-xs text-muted-foreground pl-5 mt-1 italic">
+                                  "{entry.new_observations}"
+                                </p>
+                              )}
+                              {index < history.length - 1 && <Separator className="mt-3" />}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
+        </ScrollArea>
+
+        <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={onClose}>
             Annuler
           </Button>

@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      address_status_history: {
+        Row: {
+          address_id: string
+          changed_at: string
+          id: string
+          new_observations: string | null
+          new_status: Database["public"]["Enums"]["distribution_status"]
+          old_observations: string | null
+          old_status: Database["public"]["Enums"]["distribution_status"] | null
+        }
+        Insert: {
+          address_id: string
+          changed_at?: string
+          id?: string
+          new_observations?: string | null
+          new_status: Database["public"]["Enums"]["distribution_status"]
+          old_observations?: string | null
+          old_status?: Database["public"]["Enums"]["distribution_status"] | null
+        }
+        Update: {
+          address_id?: string
+          changed_at?: string
+          id?: string
+          new_observations?: string | null
+          new_status?: Database["public"]["Enums"]["distribution_status"]
+          old_observations?: string | null
+          old_status?: Database["public"]["Enums"]["distribution_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "address_status_history_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       addresses: {
         Row: {
           created_at: string
