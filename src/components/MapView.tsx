@@ -7,12 +7,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
-import { Navigation, Lasso, X, Trash2, MapPin, Layers, Route } from "lucide-react";
+import { Navigation, Lasso, X, Trash2, MapPin, Layers, Route, Hexagon } from "lucide-react";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
 import AddAddressDialog from "./AddAddressDialog";
 import EditManualAddressDialog from "./EditManualAddressDialog";
 import StatusFilter from "./StatusFilter";
 import RouteOptimizer from "./RouteOptimizer";
+import CreateZoneDialog from "./CreateZoneDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,15 @@ type Address = {
   status: string;
   observations: string | null;
   csv_data?: any | null;
+  zone_id?: string | null;
+};
+
+type Zone = {
+  id: string;
+  name: string;
+  color: string;
+  boundary_coordinates: any;
+  team_id: string | null;
 };
 
 export default function MapView() {
@@ -63,6 +73,14 @@ export default function MapView() {
   const [optimizedRoute, setOptimizedRoute] = useState<Address[]>([]);
   const routeLineRef = useRef<L.Polyline | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  
+  // Zone management state
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [showZones, setShowZones] = useState(true);
+  const zonesLayerRef = useRef<L.FeatureGroup | null>(null);
+  const [zoneMode, setZoneMode] = useState(false);
+  const [showCreateZone, setShowCreateZone] = useState(false);
+  const [drawnZonePolygon, setDrawnZonePolygon] = useState<L.LatLng[] | null>(null);
   
   // Map layers state
   const [currentLayer, setCurrentLayer] = useState<'osm' | 'satellite' | 'hybrid'>(() => {
@@ -139,6 +157,11 @@ export default function MapView() {
     const drawnItems = new L.FeatureGroup();
     map.addLayer(drawnItems);
     drawnItemsRef.current = drawnItems;
+
+    // Initialize zones layer
+    const zonesLayer = new L.FeatureGroup();
+    map.addLayer(zonesLayer);
+    zonesLayerRef.current = zonesLayer;
 
     return () => {
       if (drawControlRef.current) {
@@ -258,6 +281,11 @@ export default function MapView() {
       return;
     }
 
+    if (zoneMode) {
+      toast.info("Désactivez le mode zone d'abord");
+      return;
+    }
+
     if (!lassoMode) {
       // Enable lasso mode
       const drawControl = new L.Control.Draw({
@@ -328,6 +356,70 @@ export default function MapView() {
       setLassoMode(false);
       setSelectedAddresses([]);
       toast.info("Mode lasso désactivé");
+    }
+  };
+
+  const toggleZoneMode = () => {
+    if (!mapRef.current || !drawnItemsRef.current) return;
+
+    if (addMode) {
+      toast.info("Désactivez le mode ajout d'abord");
+      return;
+    }
+
+    if (lassoMode) {
+      toast.info("Désactivez le mode lasso d'abord");
+      return;
+    }
+
+    if (!zoneMode) {
+      // Enable zone mode
+      const drawControl = new L.Control.Draw({
+        draw: {
+          polygon: {
+            allowIntersection: false,
+            shapeOptions: {
+              color: '#10B981',
+              fillOpacity: 0.3,
+            },
+          },
+          polyline: false,
+          rectangle: false,
+          circle: false,
+          marker: false,
+          circlemarker: false,
+        },
+        edit: {
+          featureGroup: drawnItemsRef.current,
+          remove: false,
+        },
+      });
+
+      mapRef.current.addControl(drawControl);
+      drawControlRef.current = drawControl;
+
+      // Handle polygon creation for zone
+      mapRef.current.on(L.Draw.Event.CREATED, (e: any) => {
+        const layer = e.layer;
+        const polygon = layer.getLatLngs()[0];
+        setDrawnZonePolygon(polygon);
+        setShowCreateZone(true);
+        drawnItemsRef.current?.addLayer(layer);
+      });
+
+      setZoneMode(true);
+      toast.info("Mode zone activé - Dessinez un polygone pour définir une zone");
+    } else {
+      // Disable zone mode
+      if (drawControlRef.current) {
+        mapRef.current.removeControl(drawControlRef.current);
+        drawControlRef.current = null;
+      }
+      mapRef.current.off(L.Draw.Event.CREATED);
+      drawnItemsRef.current?.clearLayers();
+      setZoneMode(false);
+      setDrawnZonePolygon(null);
+      toast.info("Mode zone désactivé");
     }
   };
 
@@ -481,6 +573,65 @@ export default function MapView() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // Fetch and display zones
+  useEffect(() => {
+    const fetchZones = async () => {
+      const { data, error } = await supabase.from("zones").select("*");
+      if (!error && data) {
+        setZones(data);
+      }
+    };
+
+    fetchZones();
+
+    const channel = supabase
+      .channel("zones-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "zones",
+        },
+        () => {
+          fetchZones();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Render zones on map
+  useEffect(() => {
+    if (!mapRef.current || !zonesLayerRef.current) return;
+
+    // Clear existing zones
+    zonesLayerRef.current.clearLayers();
+
+    if (!showZones) return;
+
+    // Add zones to map
+    zones.forEach((zone) => {
+      if (!zone.boundary_coordinates || zone.boundary_coordinates.length < 3) return;
+
+      // Convert coordinates back to LatLng format
+      const latlngs: [number, number][] = zone.boundary_coordinates.map(coord => [coord[1], coord[0]]);
+
+      const polygon = L.polygon(latlngs, {
+        color: zone.color,
+        fillColor: zone.color,
+        fillOpacity: 0.2,
+        weight: 2,
+      });
+
+      polygon.bindPopup(`<strong>${zone.name}</strong>`, { className: "zone-popup" });
+      polygon.addTo(zonesLayerRef.current!);
+    });
+  }, [zones, showZones]);
 
   // Update markers when addresses change
   useEffect(() => {
@@ -744,6 +895,19 @@ export default function MapView() {
           <Route className="h-5 w-5" />
         </Button>
         <Button
+          onClick={toggleZoneMode}
+          size="icon"
+          variant={zoneMode ? "default" : "outline"}
+          className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
+          title="Définir une zone"
+        >
+          {zoneMode ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Hexagon className="h-5 w-5" />
+          )}
+        </Button>
+        <Button
           onClick={handleGeolocate}
           disabled={isLocating}
           size="icon"
@@ -823,6 +987,30 @@ export default function MapView() {
           mapRef.current?.fitBounds(routeLineRef.current.getBounds(), { padding: [50, 50] });
         }}
         userLocation={userLocation ? { lat: userLocation[0], lng: userLocation[1] } : undefined}
+      />
+
+      {/* Create Zone Dialog */}
+      <CreateZoneDialog
+        open={showCreateZone}
+        onOpenChange={(open) => {
+          setShowCreateZone(open);
+          if (!open) {
+            drawnItemsRef.current?.clearLayers();
+            setDrawnZonePolygon(null);
+            if (zoneMode) {
+              toggleZoneMode();
+            }
+          }
+        }}
+        polygon={drawnZonePolygon}
+        addresses={addresses}
+        onSuccess={() => {
+          drawnItemsRef.current?.clearLayers();
+          setDrawnZonePolygon(null);
+          if (zoneMode) {
+            toggleZoneMode();
+          }
+        }}
       />
     </div>
   );

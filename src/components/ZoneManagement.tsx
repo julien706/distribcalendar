@@ -3,8 +3,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MapPin, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Zone {
   id: string;
@@ -12,6 +24,7 @@ interface Zone {
   color: string;
   team_id: string | null;
   teams?: { name: string; color: string; } | null;
+  address_count?: number;
 }
 
 interface Team {
@@ -37,13 +50,51 @@ const ZoneManagement = () => {
       ]);
       if (zonesRes.error) throw zonesRes.error;
       if (teamsRes.error) throw teamsRes.error;
-      setZones(zonesRes.data || []);
+      
+      // Get address counts for each zone
+      const zonesWithCounts = await Promise.all(
+        (zonesRes.data || []).map(async (zone) => {
+          const { count } = await supabase
+            .from("addresses")
+            .select("*", { count: "exact", head: true })
+            .eq("zone_id", zone.id);
+          return { ...zone, address_count: count || 0 };
+        })
+      );
+      
+      setZones(zonesWithCounts);
       setTeams(teamsRes.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Erreur lors du chargement");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteZone = async (zoneId: string) => {
+    try {
+      // First, unassign all addresses from this zone
+      const { error: updateError } = await supabase
+        .from("addresses")
+        .update({ zone_id: null })
+        .eq("zone_id", zoneId);
+      
+      if (updateError) throw updateError;
+
+      // Then delete the zone
+      const { error: deleteError } = await supabase
+        .from("zones")
+        .delete()
+        .eq("id", zoneId);
+      
+      if (deleteError) throw deleteError;
+
+      toast.success("Zone supprimée");
+      fetchData();
+    } catch (error) {
+      console.error("Error deleting zone:", error);
+      toast.error("Erreur lors de la suppression");
     }
   };
 
@@ -89,9 +140,32 @@ const ZoneManagement = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4" />
-                <span>Zone définie sur la carte</span>
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  <span>{zone.address_count} adresse(s)</span>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Supprimer cette zone ?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Cette action supprimera la zone "{zone.name}". Les adresses assignées à cette zone seront désassignées mais ne seront pas supprimées.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDeleteZone(zone.id)}>
+                        Supprimer
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
               <div>
                 <label className="text-sm font-medium mb-2 block">Assigner à une équipe</label>
