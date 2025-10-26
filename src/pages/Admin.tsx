@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import CSVImporter from "@/components/CSVImporter";
-import { ArrowLeft, Upload, LogOut, Trash2, Key, Download, Shield } from "lucide-react";
+import { ArrowLeft, Upload, LogOut, Trash2, Key, Download, Shield, RotateCcw } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -187,6 +187,35 @@ export default function Admin() {
     document.body.removeChild(link);
 
     toast.success(`${data.length} adresse(s) exportée(s)`);
+  };
+
+  const handleResetStatuses = async () => {
+    try {
+      // Delete all history
+      const { error: historyError } = await supabase
+        .from("address_status_history")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+
+      if (historyError) throw historyError;
+
+      // Reset all addresses to pending status with no observations
+      const { error: addressError } = await supabase
+        .from("addresses")
+        .update({
+          status: "pending",
+          observations: null,
+          last_visit_date: null,
+        })
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+
+      if (addressError) throw addressError;
+
+      toast.success("Statuts, historique et commentaires réinitialisés avec succès");
+    } catch (error: any) {
+      console.error("Error resetting statuses:", error);
+      toast.error("Erreur lors de la réinitialisation");
+    }
   };
 
   return (
@@ -380,6 +409,49 @@ export default function Admin() {
               <Upload className="h-4 w-4 mr-2" />
               Ouvrir l'importateur
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5" />
+              Réinitialisation des données
+            </CardTitle>
+            <CardDescription>
+              Remettre tous les statuts à "En attente" et supprimer l'historique et les commentaires (les adresses sont conservées)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50">
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Réinitialiser les statuts
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Réinitialiser tous les statuts ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Cette action va :
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li>Remettre tous les statuts à "En attente"</li>
+                      <li>Supprimer tout l'historique des changements</li>
+                      <li>Effacer tous les commentaires</li>
+                      <li>Conserver toutes les adresses</li>
+                    </ul>
+                    <p className="mt-2 font-semibold">Cette action est irréversible.</p>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleResetStatuses} className="bg-orange-500 text-white hover:bg-orange-600">
+                    Réinitialiser
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
 
