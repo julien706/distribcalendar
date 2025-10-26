@@ -32,6 +32,9 @@ import { toast } from "sonner";
 
 export default function Admin() {
   const [showImporter, setShowImporter] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -48,6 +51,32 @@ export default function Admin() {
   const handleLogout = async () => {
     await signOut();
     navigate("/auth");
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("Le mot de passe doit contenir au moins 6 caractères");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+
+      toast.success("Mot de passe modifié avec succès");
+      setShowChangePassword(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors du changement de mot de passe");
+    }
   };
 
   const sanitizeCSVField = (field: string): string => {
@@ -128,6 +157,66 @@ export default function Admin() {
       </header>
 
       <div className="container max-w-4xl mx-auto p-4 space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Sécurité du compte
+            </CardTitle>
+            <CardDescription>
+              Modifier votre mot de passe de connexion
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Dialog open={showChangePassword} onOpenChange={setShowChangePassword}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Key className="h-4 w-4 mr-2" />
+                  Changer le mot de passe
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Modifier le mot de passe</DialogTitle>
+                  <DialogDescription>
+                    Entrez votre nouveau mot de passe (minimum 6 caractères)
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="new-password">Nouveau mot de passe</Label>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowChangePassword(false)}>
+                    Annuler
+                  </Button>
+                  <Button onClick={handleChangePassword}>
+                    Modifier
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
