@@ -42,7 +42,7 @@ export default function Index() {
       </header>
 
       {/* Full screen map */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative min-h-0">
         <MapView />
       </div>
 
