@@ -53,21 +53,30 @@ export default function CSVImporter({
           
           const addresses = batch
             .filter((row) => row.lat && row.long) // Valider les données
-            .map((row) => ({
-              street_name: row.voie_nom || row.lieudit_complement_nom || "Rue inconnue",
-              street_number: row.numero || null,
-              is_even: row.numero ? parseInt(row.numero) % 2 === 0 : null,
-              latitude: parseFloat(row.lat),
-              longitude: parseFloat(row.long),
-              status: "pending" as const,
-              csv_data: {
-                commune_nom: row.commune_nom,
-                voie_nom: row.voie_nom,
-                numero: row.numero,
-                lat: row.lat,
-                long: row.long
-              }, // Stocker seulement les données essentielles
-            }));
+            .map((row) => {
+              const lat = parseFloat(String(row.lat).replace(',', '.'));
+              const lng = parseFloat(String(row.long).replace(',', '.'));
+              const valid = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+              if (!valid) return null;
+              return {
+                street_name: row.voie_nom || row.lieudit_complement_nom || "Rue inconnue",
+                street_number: row.numero || null,
+                is_even: row.numero ? parseInt(row.numero) % 2 === 0 : null,
+                latitude: lat,
+                longitude: lng,
+                status: "pending" as const,
+                csv_data: {
+                  commune_nom: row.commune_nom,
+                  voie_nom: row.voie_nom,
+                  numero: row.numero,
+                  lat: row.lat,
+                  long: row.long
+                }, // Stocker seulement les données essentielles
+              };
+            })
+            .filter(Boolean) as any[];
+
+          const invalidInBatch = batch.length - addresses.length;
 
           if (addresses.length > 0) {
             const { error } = await supabase.from("addresses").insert(addresses);
@@ -75,12 +84,26 @@ export default function CSVImporter({
             if (error) {
               console.error("Error importing batch:", error);
               toast.error(`Erreur batch ${Math.floor(i/batchSize) + 1}: ${error.message}`);
-              failed += batch.length;
+              // Fallback: insertion ligne par ligne pour isoler les erreurs
+              for (const addr of addresses) {
+                const { error: rowError } = await supabase.from("addresses").insert(addr);
+                if (rowError) {
+                  failed += 1;
+                } else {
+                  imported += 1;
+                }
+              }
             } else {
               imported += addresses.length;
             }
           } else {
+            // tout invalide
             failed += batch.length;
+          }
+          
+          // compter les lignes invalides filtrées
+          if (addresses.length > 0) {
+            failed += invalidInBatch;
           }
           
           setCurrentCount(imported);
@@ -132,21 +155,30 @@ export default function CSVImporter({
             
             const addresses = batch
               .filter((row) => row.lat && row.long)
-              .map((row) => ({
-                street_name: row.voie_nom || row.lieudit_complement_nom || "Rue inconnue",
-                street_number: row.numero || null,
-                is_even: row.numero ? parseInt(row.numero) % 2 === 0 : null,
-                latitude: parseFloat(row.lat),
-                longitude: parseFloat(row.long),
-                status: "pending" as const,
-                csv_data: {
-                  commune_nom: row.commune_nom,
-                  voie_nom: row.voie_nom,
-                  numero: row.numero,
-                  lat: row.lat,
-                  long: row.long
-                }, // Stocker seulement les données essentielles
-              }));
+              .map((row) => {
+                const lat = parseFloat(String(row.lat).replace(',', '.'));
+                const lng = parseFloat(String(row.long).replace(',', '.'));
+                const valid = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+                if (!valid) return null;
+                return {
+                  street_name: row.voie_nom || row.lieudit_complement_nom || "Rue inconnue",
+                  street_number: row.numero || null,
+                  is_even: row.numero ? parseInt(row.numero) % 2 === 0 : null,
+                  latitude: lat,
+                  longitude: lng,
+                  status: "pending" as const,
+                  csv_data: {
+                    commune_nom: row.commune_nom,
+                    voie_nom: row.voie_nom,
+                    numero: row.numero,
+                    lat: row.lat,
+                    long: row.long
+                  }, // Stocker seulement les données essentielles
+                };
+              })
+              .filter(Boolean) as any[];
+
+            const invalidInBatch = batch.length - addresses.length;
 
             if (addresses.length > 0) {
               const { error } = await supabase.from("addresses").insert(addresses);
@@ -154,12 +186,25 @@ export default function CSVImporter({
               if (error) {
                 console.error("Error importing batch:", error);
                 toast.error(`Erreur batch ${Math.floor(i/batchSize) + 1}: ${error.message}`);
-                failed += batch.length;
+                // Fallback: insertion ligne par ligne pour isoler les erreurs
+                for (const addr of addresses) {
+                  const { error: rowError } = await supabase.from("addresses").insert(addr);
+                  if (rowError) {
+                    failed += 1;
+                  } else {
+                    imported += 1;
+                  }
+                }
               } else {
                 imported += addresses.length;
               }
             } else {
               failed += batch.length;
+            }
+            
+            // compter les lignes invalides filtrées
+            if (addresses.length > 0) {
+              failed += invalidInBatch;
             }
             
             setCurrentCount(imported);
