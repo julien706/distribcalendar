@@ -22,6 +22,8 @@ export default function CSVImporter({
 }) {
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [currentCount, setCurrentCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -29,6 +31,8 @@ export default function CSVImporter({
 
     setImporting(true);
     setProgress(0);
+    setCurrentCount(0);
+    setTotalCount(0);
 
     Papa.parse(file, {
       header: true,
@@ -36,38 +40,52 @@ export default function CSVImporter({
       complete: async (results) => {
         const rows = results.data as any[];
         const total = rows.length;
+        setTotalCount(total);
+        
         let imported = 0;
-        const batchSize = 50;
+        let failed = 0;
+        const batchSize = 100; // Augmenté pour plus d'efficacité
+
+        toast.info(`Import démarré: ${total} adresses à traiter`);
 
         for (let i = 0; i < rows.length; i += batchSize) {
           const batch = rows.slice(i, i + batchSize);
           
-          const addresses = batch.map((row) => ({
-            street_name: row.voie_nom || row.lieudit_complement_nom || "Rue inconnue",
-            street_number: row.numero || null,
-            is_even: row.numero ? parseInt(row.numero) % 2 === 0 : null,
-            latitude: parseFloat(row.lat),
-            longitude: parseFloat(row.long),
-            status: "pending" as const,
-            csv_data: row,
-          }));
+          const addresses = batch
+            .filter((row) => row.lat && row.long) // Valider les données
+            .map((row) => ({
+              street_name: row.voie_nom || row.lieudit_complement_nom || "Rue inconnue",
+              street_number: row.numero || null,
+              is_even: row.numero ? parseInt(row.numero) % 2 === 0 : null,
+              latitude: parseFloat(row.lat),
+              longitude: parseFloat(row.long),
+              status: "pending" as const,
+              csv_data: row,
+            }));
 
-          const { error } = await supabase.from("addresses").insert(addresses);
+          if (addresses.length > 0) {
+            const { error } = await supabase.from("addresses").insert(addresses);
 
-          if (error) {
-            console.error("Error importing batch:", error);
+            if (error) {
+              console.error("Error importing batch:", error);
+              failed += batch.length;
+            } else {
+              imported += addresses.length;
+            }
           } else {
-            imported += batch.length;
-            setProgress(Math.round((imported / total) * 100));
+            failed += batch.length;
           }
+          
+          setCurrentCount(imported);
+          setProgress(Math.round(((imported + failed) / total) * 100));
         }
 
         setImporting(false);
         if (imported > 0) {
-          toast.success(`${imported} adresses importées avec succès`);
+          toast.success(`${imported} adresses importées${failed > 0 ? ` (${failed} erreurs)` : ""}`);
           onClose();
         } else {
-          toast.error("Erreur lors de l'import");
+          toast.error("Erreur lors de l'import: aucune adresse valide");
         }
       },
       error: (error) => {
@@ -81,6 +99,8 @@ export default function CSVImporter({
   const handleImportDefault = async () => {
     setImporting(true);
     setProgress(0);
+    setCurrentCount(0);
+    setTotalCount(0);
 
     try {
       const response = await fetch("/src/data/addresses.csv");
@@ -92,38 +112,52 @@ export default function CSVImporter({
         complete: async (results) => {
           const rows = results.data as any[];
           const total = rows.length;
+          setTotalCount(total);
+          
           let imported = 0;
-          const batchSize = 50;
+          let failed = 0;
+          const batchSize = 100;
+
+          toast.info(`Import démarré: ${total} adresses à traiter`);
 
           for (let i = 0; i < rows.length; i += batchSize) {
             const batch = rows.slice(i, i + batchSize);
             
-            const addresses = batch.map((row) => ({
-              street_name: row.voie_nom || row.lieudit_complement_nom || "Rue inconnue",
-              street_number: row.numero || null,
-              is_even: row.numero ? parseInt(row.numero) % 2 === 0 : null,
-              latitude: parseFloat(row.lat),
-              longitude: parseFloat(row.long),
-              status: "pending" as const,
-              csv_data: row,
-            }));
+            const addresses = batch
+              .filter((row) => row.lat && row.long)
+              .map((row) => ({
+                street_name: row.voie_nom || row.lieudit_complement_nom || "Rue inconnue",
+                street_number: row.numero || null,
+                is_even: row.numero ? parseInt(row.numero) % 2 === 0 : null,
+                latitude: parseFloat(row.lat),
+                longitude: parseFloat(row.long),
+                status: "pending" as const,
+                csv_data: row,
+              }));
 
-            const { error } = await supabase.from("addresses").insert(addresses);
+            if (addresses.length > 0) {
+              const { error } = await supabase.from("addresses").insert(addresses);
 
-            if (error) {
-              console.error("Error importing batch:", error);
+              if (error) {
+                console.error("Error importing batch:", error);
+                failed += batch.length;
+              } else {
+                imported += addresses.length;
+              }
             } else {
-              imported += batch.length;
-              setProgress(Math.round((imported / total) * 100));
+              failed += batch.length;
             }
+            
+            setCurrentCount(imported);
+            setProgress(Math.round(((imported + failed) / total) * 100));
           }
 
           setImporting(false);
           if (imported > 0) {
-            toast.success(`${imported} adresses importées avec succès`);
+            toast.success(`${imported} adresses importées${failed > 0 ? ` (${failed} erreurs)` : ""}`);
             onClose();
           } else {
-            toast.error("Erreur lors de l'import");
+            toast.error("Erreur lors de l'import: aucune adresse valide");
           }
         },
       });
@@ -148,18 +182,19 @@ export default function CSVImporter({
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Le fichier CSV doit contenir les colonnes : voie_nom, numero, lat, long
+              Le fichier CSV doit contenir les colonnes : voie_nom, numero, lat, long.
+              Supporte l'import de plus de 1000 adresses avec traitement par batch optimisé.
             </AlertDescription>
           </Alert>
 
           {importing && (
             <div className="space-y-2">
               <div className="text-sm text-center text-muted-foreground">
-                Import en cours... {progress}%
+                Import en cours... {currentCount} / {totalCount} ({progress}%)
               </div>
-              <div className="w-full bg-secondary rounded-full h-2">
+              <div className="w-full bg-secondary rounded-full h-2.5">
                 <div
-                  className="bg-primary h-2 rounded-full transition-all"
+                  className="bg-primary h-2.5 rounded-full transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
               </div>
