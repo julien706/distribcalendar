@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import { useEffect, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
-import { Input } from "./ui/input";
-import { Button } from "./ui/button";
 import { toast } from "sonner";
 
 type Address = {
@@ -25,35 +24,44 @@ const STATUS_COLORS = {
   uninhabited: "#64748b",
 };
 
+// Create custom marker icons
+const createMarkerIcon = (color: string) => {
+  return L.divIcon({
+    className: "custom-marker",
+    html: `<div style="
+      width: 24px;
+      height: 24px;
+      background-color: ${color};
+      border: 2px solid white;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      cursor: pointer;
+      transition: transform 0.2s;
+    "></div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+  });
+};
+
+function MapUpdater({ addresses }: { addresses: Address[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (addresses.length > 0) {
+      const bounds = L.latLngBounds(
+        addresses.map((addr) => [addr.latitude, addr.longitude])
+      );
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [addresses, map]);
+
+  return null;
+}
+
 export default function MapView() {
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const [mapboxToken, setMapboxToken] = useState("");
-  const [isTokenSet, setIsTokenSet] = useState(false);
   const [addresses, setAddresses] = useState<Address[]>([]);
 
   useEffect(() => {
-    if (!isTokenSet || !mapContainer.current) return;
-
-    mapboxgl.accessToken = mapboxToken;
-
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: [4.122, 49.048],
-      zoom: 14,
-    });
-
-    map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
-
-    return () => {
-      map.current?.remove();
-    };
-  }, [isTokenSet, mapboxToken]);
-
-  useEffect(() => {
-    if (!isTokenSet) return;
-
     const fetchAddresses = async () => {
       const { data, error } = await supabase
         .from("addresses")
@@ -88,92 +96,53 @@ export default function MapView() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isTokenSet]);
-
-  useEffect(() => {
-    if (!map.current || addresses.length === 0) return;
-
-    // Remove existing markers
-    const markers = document.getElementsByClassName("mapboxgl-marker");
-    while (markers[0]) {
-      markers[0].remove();
-    }
-
-    // Add new markers
-    addresses.forEach((address) => {
-      const el = document.createElement("div");
-      el.className = "w-6 h-6 rounded-full border-2 border-white shadow-lg cursor-pointer transition-transform hover:scale-125";
-      el.style.backgroundColor = STATUS_COLORS[address.status as keyof typeof STATUS_COLORS] || STATUS_COLORS.pending;
-
-      const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-        `<div class="p-2">
-          <strong>${address.street_number || ""} ${address.street_name}</strong><br/>
-          <span class="text-sm">Statut: ${address.status}</span>
-          ${address.observations ? `<br/><span class="text-sm text-muted-foreground">${address.observations}</span>` : ""}
-        </div>`
-      );
-
-      new mapboxgl.Marker(el)
-        .setLngLat([address.longitude, address.latitude])
-        .setPopup(popup)
-        .addTo(map.current!);
-    });
-
-    // Fit bounds to show all markers
-    if (addresses.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds();
-      addresses.forEach((addr) => {
-        bounds.extend([addr.longitude, addr.latitude]);
-      });
-      map.current.fitBounds(bounds, { padding: 50 });
-    }
-  }, [addresses]);
-
-  if (!isTokenSet) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-background">
-        <div className="w-full max-w-md space-y-4">
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold">Token Mapbox requis</h2>
-            <p className="text-sm text-muted-foreground">
-              Obtenez votre token sur{" "}
-              <a
-                href="https://mapbox.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline"
-              >
-                mapbox.com
-              </a>
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Input
-              type="text"
-              placeholder="pk.eyJ1..."
-              value={mapboxToken}
-              onChange={(e) => setMapboxToken(e.target.value)}
-            />
-            <Button
-              className="w-full"
-              onClick={() => {
-                if (mapboxToken) {
-                  setIsTokenSet(true);
-                  toast.success("Token configuré avec succès");
-                }
-              }}
-            >
-              Valider
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  }, []);
 
   return (
     <div className="relative w-full h-screen">
-      <div ref={mapContainer} className="absolute inset-0" />
+      <MapContainer
+        center={[49.048, 4.122]}
+        zoom={14}
+        className="h-full w-full"
+        zoomControl={true}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        
+        {addresses.map((address) => {
+          const color = STATUS_COLORS[address.status as keyof typeof STATUS_COLORS] || STATUS_COLORS.pending;
+          
+          return (
+            <Marker
+              key={address.id}
+              position={[address.latitude, address.longitude]}
+              icon={createMarkerIcon(color)}
+            >
+              <Popup>
+                <div className="p-2">
+                  <strong className="text-base">
+                    {address.street_number || ""} {address.street_name}
+                  </strong>
+                  <br />
+                  <span className="text-sm">Statut: {address.status}</span>
+                  {address.observations && (
+                    <>
+                      <br />
+                      <span className="text-sm text-muted-foreground">
+                        {address.observations}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+        
+        <MapUpdater addresses={addresses} />
+      </MapContainer>
     </div>
   );
 }
