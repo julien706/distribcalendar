@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
-import { Navigation, Lasso, X, Trash2, MapPin } from "lucide-react";
+import { Navigation, Lasso, X, Trash2, MapPin, Layers } from "lucide-react";
 import { STATUS_CONFIG } from "@/lib/statusConfig";
 import AddAddressDialog from "./AddAddressDialog";
 import {
@@ -48,6 +48,22 @@ export default function MapView() {
   const [addMode, setAddMode] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newAddressCoords, setNewAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
+  
+  // Map layers state
+  const [currentLayer, setCurrentLayer] = useState<'osm' | 'satellite' | 'hybrid'>(() => {
+    return (localStorage.getItem('mapLayer') as 'osm' | 'satellite' | 'hybrid') || 'osm';
+  });
+  const layersRef = useRef<{
+    osm: L.TileLayer | null;
+    satellite: L.TileLayer | null;
+    hybrid: L.TileLayer | null;
+    labels: L.TileLayer | null;
+  }>({
+    osm: null,
+    satellite: null,
+    hybrid: null,
+    labels: null,
+  });
 
   // Initialize map
   useEffect(() => {
@@ -59,12 +75,48 @@ export default function MapView() {
       minZoom: 3,
     }).setView([49.048, 4.122], 14);
 
-    // Add tile layer with higher maxZoom
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    // Create all tile layers
+    const osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 22,
       maxNativeZoom: 19,
-    }).addTo(map);
+    });
+
+    const satelliteLayer = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        attribution: '&copy; <a href="https://www.esri.com/">Esri</a>',
+        maxZoom: 22,
+        maxNativeZoom: 19,
+      }
+    );
+
+    const labelsLayer = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+      {
+        attribution: '',
+        maxZoom: 22,
+        maxNativeZoom: 19,
+      }
+    );
+
+    // Store layers in ref
+    layersRef.current = {
+      osm: osmLayer,
+      satellite: satelliteLayer,
+      hybrid: satelliteLayer,
+      labels: labelsLayer,
+    };
+
+    // Add initial layer based on saved preference
+    if (currentLayer === 'osm') {
+      osmLayer.addTo(map);
+    } else if (currentLayer === 'satellite') {
+      satelliteLayer.addTo(map);
+    } else if (currentLayer === 'hybrid') {
+      satelliteLayer.addTo(map);
+      labelsLayer.addTo(map);
+    }
 
     mapRef.current = map;
 
@@ -310,6 +362,39 @@ export default function MapView() {
     drawnItemsRef.current?.clearLayers();
   };
 
+  const toggleMapLayer = () => {
+    if (!mapRef.current || !layersRef.current.osm || !layersRef.current.satellite || !layersRef.current.labels) return;
+
+    const nextLayer: 'osm' | 'satellite' | 'hybrid' = 
+      currentLayer === 'osm' ? 'satellite' : currentLayer === 'satellite' ? 'hybrid' : 'osm';
+
+    // Remove current layers
+    if (currentLayer === 'osm') {
+      layersRef.current.osm.remove();
+    } else if (currentLayer === 'satellite') {
+      layersRef.current.satellite.remove();
+    } else if (currentLayer === 'hybrid') {
+      layersRef.current.satellite.remove();
+      layersRef.current.labels.remove();
+    }
+
+    // Add new layers
+    if (nextLayer === 'osm') {
+      layersRef.current.osm.addTo(mapRef.current);
+      toast.info("Vue Carte");
+    } else if (nextLayer === 'satellite') {
+      layersRef.current.satellite.addTo(mapRef.current);
+      toast.info("Vue Satellite");
+    } else if (nextLayer === 'hybrid') {
+      layersRef.current.satellite.addTo(mapRef.current);
+      layersRef.current.labels.addTo(mapRef.current);
+      toast.info("Vue Hybride");
+    }
+
+    setCurrentLayer(nextLayer);
+    localStorage.setItem('mapLayer', nextLayer);
+  };
+
   // Fetch addresses
   useEffect(() => {
     const PAGE_SIZE = 1000;
@@ -527,6 +612,15 @@ export default function MapView() {
           ) : (
             <Lasso className="h-5 w-5" />
           )}
+        </Button>
+        <Button
+          onClick={toggleMapLayer}
+          size="icon"
+          variant="outline"
+          className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
+          title={`Vue actuelle: ${currentLayer === 'osm' ? 'Carte' : currentLayer === 'satellite' ? 'Satellite' : 'Hybride'}`}
+        >
+          <Layers className="h-5 w-5" />
         </Button>
         <Button
           onClick={handleGeolocate}
