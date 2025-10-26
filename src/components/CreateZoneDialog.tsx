@@ -171,12 +171,12 @@ export default function CreateZoneDialog({ open, onOpenChange, polygon, addresse
           </div>
           <div>
             <Label htmlFor="team">Équipe (optionnel)</Label>
-            <Select value={teamId} onValueChange={setTeamId}>
+            <Select value={teamId || "none"} onValueChange={(value) => setTeamId(value === "none" ? "" : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Aucune équipe" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Aucune équipe</SelectItem>
+                <SelectItem value="none">Aucune équipe</SelectItem>
                 {teams.map((team) => (
                   <SelectItem key={team.id} value={team.id}>
                     <div className="flex items-center gap-2">
