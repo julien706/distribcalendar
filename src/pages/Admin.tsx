@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import CSVImporter from "@/components/CSVImporter";
-import { ArrowLeft, Upload, LogOut, Trash2, Key, Download } from "lucide-react";
+import { ArrowLeft, Upload, LogOut, Trash2, Key, Download, Shield } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,10 +33,18 @@ import { toast } from "sonner";
 export default function Admin() {
   const [showImporter, setShowImporter] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showChangeInvitation, setShowChangeInvitation] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [invitationCode, setInvitationCode] = useState("");
+  const [newInvitationCode, setNewInvitationCode] = useState("");
+  const [loadingInvitation, setLoadingInvitation] = useState(false);
   const { signOut } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchInvitationCode();
+  }, []);
 
   const handleDeleteAll = async () => {
     const { error } = await supabase.from("addresses").delete().neq("id", "00000000-0000-0000-0000-000000000000");
@@ -45,6 +53,48 @@ export default function Admin() {
       toast.error("Erreur lors de la suppression");
     } else {
       toast.success("Toutes les adresses ont été supprimées");
+    }
+  };
+
+  const fetchInvitationCode = async () => {
+    setLoadingInvitation(true);
+    const { data, error } = await supabase
+      .from("invitation_codes")
+      .select("code")
+      .eq("is_active", true)
+      .single();
+
+    if (!error && data) {
+      setInvitationCode(data.code);
+    }
+    setLoadingInvitation(false);
+  };
+
+  const handleChangeInvitationCode = async () => {
+    if (!newInvitationCode.trim()) {
+      toast.error("Le code d'invitation ne peut pas être vide");
+      return;
+    }
+
+    if (newInvitationCode.length < 4) {
+      toast.error("Le code doit contenir au moins 4 caractères");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("invitation_codes")
+        .update({ code: newInvitationCode.toUpperCase() })
+        .eq("is_active", true);
+
+      if (error) throw error;
+
+      toast.success("Code d'invitation modifié avec succès");
+      setInvitationCode(newInvitationCode.toUpperCase());
+      setShowChangeInvitation(false);
+      setNewInvitationCode("");
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors du changement du code");
     }
   };
 
@@ -209,6 +259,74 @@ export default function Admin() {
                     Annuler
                   </Button>
                   <Button onClick={handleChangePassword}>
+                    Modifier
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Code d'invitation
+            </CardTitle>
+            <CardDescription>
+              Gérer le code requis pour les nouvelles inscriptions
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {loadingInvitation ? (
+              <p className="text-sm text-muted-foreground">Chargement...</p>
+            ) : (
+              <div className="space-y-2">
+                <Label>Code actuel</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={invitationCode}
+                    readOnly
+                    className="font-mono text-lg tracking-wider"
+                  />
+                </div>
+              </div>
+            )}
+            <Dialog open={showChangeInvitation} onOpenChange={setShowChangeInvitation}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Key className="h-4 w-4 mr-2" />
+                  Modifier le code
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Modifier le code d'invitation</DialogTitle>
+                  <DialogDescription>
+                    Ce code sera requis pour toutes les nouvelles inscriptions (minimum 4 caractères)
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="new-invitation-code">Nouveau code d'invitation</Label>
+                    <Input
+                      id="new-invitation-code"
+                      type="text"
+                      value={newInvitationCode}
+                      onChange={(e) => setNewInvitationCode(e.target.value.toUpperCase())}
+                      placeholder="NOUVEAUCODE"
+                      className="font-mono tracking-wider"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => {
+                    setShowChangeInvitation(false);
+                    setNewInvitationCode("");
+                  }}>
+                    Annuler
+                  </Button>
+                  <Button onClick={handleChangeInvitationCode}>
                     Modifier
                   </Button>
                 </DialogFooter>

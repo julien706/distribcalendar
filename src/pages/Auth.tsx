@@ -13,6 +13,7 @@ import { authSchema } from "@/lib/validationSchemas";
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [invitationCode, setInvitationCode] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -60,8 +61,28 @@ export default function Auth() {
       return;
     }
 
+    if (!invitationCode.trim()) {
+      toast.error("Le code d'invitation est requis");
+      return;
+    }
+
     setLoading(true);
     try {
+      // Validate invitation code first
+      const { data: validationData, error: validationError } = await supabase.functions.invoke(
+        'validate-invitation',
+        {
+          body: { code: invitationCode }
+        }
+      );
+
+      if (validationError || !validationData?.valid) {
+        toast.error(validationData?.error || "Code d'invitation invalide");
+        setLoading(false);
+        return;
+      }
+
+      // If code is valid, proceed with signup
       const { error } = await supabase.auth.signUp({
         email: result.data.email,
         password: result.data.password,
@@ -138,6 +159,18 @@ export default function Auth() {
             
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="invitation-code">Code d'invitation</Label>
+                  <Input
+                    id="invitation-code"
+                    type="text"
+                    placeholder="Entrez le code d'invitation"
+                    value={invitationCode}
+                    onChange={(e) => setInvitationCode(e.target.value.toUpperCase())}
+                    required
+                    autoComplete="off"
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
                   <Input
