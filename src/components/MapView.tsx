@@ -172,16 +172,21 @@ export default function MapView() {
 
         // Get polygon bounds
         const polygon = layer.getLatLngs()[0];
+        console.log("Polygon created:", polygon);
+        console.log("Total addresses:", addresses.length);
 
         // Find markers inside polygon
         const selected: string[] = [];
         addresses.forEach((address) => {
           const point = L.latLng(address.latitude, address.longitude);
-          if (isPointInPolygon(point, polygon)) {
+          const isInside = isPointInPolygon(point, polygon);
+          console.log(`Address ${address.street_name} ${address.street_number}: lat=${address.latitude}, lng=${address.longitude}, inside=${isInside}`);
+          if (isInside) {
             selected.push(address.id);
           }
         });
 
+        console.log("Selected addresses:", selected.length, selected);
         setSelectedAddresses(selected);
         if (selected.length > 0) {
           setShowDeleteDialog(true);
@@ -227,11 +232,15 @@ export default function MapView() {
   };
 
   const handleDeleteSelected = async () => {
+    console.log("Deleting addresses:", selectedAddresses);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("addresses")
         .delete()
-        .in("id", selectedAddresses);
+        .in("id", selectedAddresses)
+        .select();
+
+      console.log("Delete result:", { data, error });
 
       if (error) throw error;
 
