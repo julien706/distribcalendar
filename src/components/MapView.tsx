@@ -3,6 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { createPopupContent } from "./MapPopup";
 
 type Address = {
   id: string;
@@ -119,16 +120,25 @@ export default function MapView() {
         iconAnchor: [12, 12],
       });
 
-      // Create marker
+      // Handle status change callback
+      const handleStatusChange = (id: string, newStatus: string) => {
+        setAddresses((prev) =>
+          prev.map((addr) =>
+            addr.id === id ? { ...addr, status: newStatus } : addr
+          )
+        );
+      };
+
+      // Create marker with interactive popup
       const marker = L.marker([address.latitude, address.longitude], { icon })
-        .bindPopup(
-          `<div style="padding: 8px;">
-            <strong style="font-size: 14px;">${address.street_number || ""} ${address.street_name}</strong><br/>
-            <span style="font-size: 12px;">Statut: ${address.status}</span>
-            ${address.observations ? `<br/><span style="font-size: 12px; color: #666;">${address.observations}</span>` : ""}
-          </div>`
-        )
         .addTo(mapRef.current!);
+
+      // Bind popup with interactive content
+      const popupContent = createPopupContent(address, handleStatusChange);
+      marker.bindPopup(popupContent, {
+        maxWidth: 300,
+        className: "custom-popup",
+      });
 
       markersRef.current.push(marker);
       bounds.push([address.latitude, address.longitude]);

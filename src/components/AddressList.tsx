@@ -44,6 +44,8 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited" | null>(null);
+  const [streetFilter, setStreetFilter] = useState<string | null>(null);
+  const [streets, setStreets] = useState<string[]>([]);
 
   const fetchAddresses = async () => {
     setLoading(true);
@@ -53,12 +55,22 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
       query = query.eq("status", filter);
     }
 
+    if (streetFilter) {
+      query = query.eq("street_name", streetFilter);
+    }
+
     const { data, error } = await query;
 
     if (error) {
       toast.error("Erreur lors du chargement des adresses");
     } else {
       setAddresses(data || []);
+      
+      // Extract unique street names for filter
+      if (!streetFilter) {
+        const uniqueStreets = Array.from(new Set(data?.map(addr => addr.street_name) || [])).sort();
+        setStreets(uniqueStreets);
+      }
     }
     setLoading(false);
   };
@@ -84,7 +96,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [filter]);
+  }, [filter, streetFilter]);
 
   const statusCounts = addresses.reduce((acc, addr) => {
     acc[addr.status] = (acc[addr.status] || 0) + 1;
@@ -100,24 +112,63 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
         </Button>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        <Button
-          size="sm"
-          variant={filter === null ? "default" : "outline"}
-          onClick={() => setFilter(null)}
-        >
-          Toutes ({addresses.length})
-        </Button>
-        {Object.entries(STATUS_LABELS).map(([key, label]) => (
-          <Button
-            key={key}
-            size="sm"
-            variant={filter === key ? "default" : "outline"}
-            onClick={() => setFilter(key as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited")}
-          >
-            {label} ({statusCounts[key] || 0})
-          </Button>
-        ))}
+      <div className="space-y-3">
+        <div>
+          <label className="text-sm font-medium mb-2 block">Filtrer par statut</label>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant={filter === null ? "default" : "outline"}
+              onClick={() => setFilter(null)}
+            >
+              Toutes ({addresses.length})
+            </Button>
+            {Object.entries(STATUS_LABELS).map(([key, label]) => (
+              <Button
+                key={key}
+                size="sm"
+                variant={filter === key ? "default" : "outline"}
+                onClick={() => setFilter(key as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited")}
+              >
+                {label} ({statusCounts[key] || 0})
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium mb-2 block">Filtrer par rue</label>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant={streetFilter === null ? "default" : "outline"}
+              onClick={() => setStreetFilter(null)}
+            >
+              Toutes les rues
+            </Button>
+            {streets.slice(0, 10).map((street) => (
+              <Button
+                key={street}
+                size="sm"
+                variant={streetFilter === street ? "default" : "outline"}
+                onClick={() => setStreetFilter(street)}
+                className="text-xs"
+              >
+                {street}
+              </Button>
+            ))}
+            {streets.length > 10 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs"
+                disabled
+              >
+                +{streets.length - 10} autres
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
       {loading ? (
