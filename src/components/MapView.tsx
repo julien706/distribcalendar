@@ -78,7 +78,7 @@ export default function MapView() {
     const map = L.map(mapContainerRef.current, {
       maxZoom: 22,
       minZoom: 3,
-    }).setView([49.048, 4.122], 14);
+    }).setView([49.048, 4.122], 16);
 
     // Create all tile layers
     const osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
