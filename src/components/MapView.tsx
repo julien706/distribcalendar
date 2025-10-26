@@ -271,8 +271,7 @@ export default function MapView() {
       const { data, error } = await supabase
         .from("addresses")
         .select("*")
-        .order("street_name")
-        .limit(1000);
+        .order("street_name");
 
       if (error) {
         toast.error("Erreur lors du chargement des adresses");
@@ -280,11 +279,6 @@ export default function MapView() {
       }
 
       setAddresses(data || []);
-      
-      // Warn if we hit the limit
-      if (data && data.length === 1000) {
-        toast.warning("Limite de 1000 adresses atteinte. Certaines adresses ne sont pas affichées.");
-      }
     };
 
     fetchAddresses();
