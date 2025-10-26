@@ -215,17 +215,16 @@ export default function MapView() {
 
   const isPointInPolygon = (point: L.LatLng, polygon: L.LatLng[]) => {
     let inside = false;
-    const x = point.lat;
-    const y = point.lng;
+    const x = point.lng; // longitude
+    const y = point.lat; // latitude
 
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-      const xi = polygon[i].lat;
-      const yi = polygon[i].lng;
-      const xj = polygon[j].lat;
-      const yj = polygon[j].lng;
+      const xi = polygon[i].lng;
+      const yi = polygon[i].lat;
+      const xj = polygon[j].lng;
+      const yj = polygon[j].lat;
 
-      const intersect =
-        yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+      const intersect = (yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
       if (intersect) inside = !inside;
     }
 
@@ -419,7 +418,7 @@ export default function MapView() {
       <div ref={mapContainerRef} className="absolute inset-0" />
       
       {/* Control Buttons */}
-      <div className="absolute bottom-24 right-4 z-[1000] flex flex-col gap-2 items-end">
+      <div className="absolute bottom-24 right-4 z-[12000] pointer-events-auto flex flex-col gap-2 items-end">
         {selectedAddresses.length > 0 && (
           <Button
             onClick={() => setShowDeleteDialog(true)}
