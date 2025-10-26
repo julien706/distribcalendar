@@ -54,6 +54,7 @@ export default function MapView() {
   const [addMode, setAddMode] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newAddressCoords, setNewAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [movingAddressId, setMovingAddressId] = useState<string | null>(null);
   
   // Map layers state
   const [currentLayer, setCurrentLayer] = useState<'osm' | 'satellite' | 'hybrid'>(() => {
@@ -538,19 +539,53 @@ export default function MapView() {
       const marker = L.marker([address.latitude, address.longitude], { icon })
         .addTo(mapRef.current!);
 
-      // Click to toggle selection in lasso mode
+      // Click behavior: move in add mode for manual entries, select in lasso mode
       marker.on('click', (e: any) => {
-        if (!lassoMode) return;
         try {
           e.originalEvent?.preventDefault?.();
           e.originalEvent?.stopPropagation?.();
         } catch {}
-        setSelectedAddresses((prev) =>
-          prev.includes(address.id)
-            ? prev.filter((id) => id !== address.id)
-            : [...prev, address.id]
-        );
-        marker.closePopup();
+        
+        if (addMode && isManuallyAdded) {
+          // Enable dragging to move this marker
+          if ((marker as any).dragging && typeof (marker as any).dragging.enable === 'function') {
+            (marker as any).dragging.enable();
+          }
+          setMovingAddressId(address.id);
+          toast.info('Déplacez le marqueur puis relâchez pour enregistrer');
+          return;
+        }
+        
+        if (lassoMode) {
+          setSelectedAddresses((prev) =>
+            prev.includes(address.id)
+              ? prev.filter((id) => id !== address.id)
+              : [...prev, address.id]
+          );
+          marker.closePopup();
+        }
+      });
+
+      // Save new position on drag end when in moving mode
+      marker.on('dragend', async () => {
+        if (movingAddressId !== address.id) return;
+        const pos = marker.getLatLng();
+        try {
+          const { error } = await supabase
+            .from('addresses')
+            .update({ latitude: pos.lat, longitude: pos.lng })
+            .eq('id', address.id);
+          if (error) throw error;
+          toast.success('Position mise à jour');
+        } catch (err) {
+          console.error('Error updating position', err);
+          toast.error("Erreur lors de la mise à jour de la position");
+        } finally {
+          if ((marker as any).dragging && typeof (marker as any).dragging.disable === 'function') {
+            (marker as any).dragging.disable();
+          }
+          setMovingAddressId(null);
+        }
       });
 
       // Bind popup with interactive content only when not in lasso mode and not in add mode
