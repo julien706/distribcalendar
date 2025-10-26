@@ -46,6 +46,7 @@ export default function MapView() {
     // Initialize with all statuses selected
     return Object.keys(STATUS_CONFIG) as StatusType[];
   });
+  const [showNumbers, setShowNumbers] = useState(true);
   const [isLocating, setIsLocating] = useState(false);
   const [lassoMode, setLassoMode] = useState(false);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
@@ -501,8 +502,7 @@ export default function MapView() {
       const textColor = getContrastingTextColor(color);
       
       // Create custom icon with selection ring
-      const streetNumber = address.street_number || '';
-      console.log(`Creating marker for ${address.street_name} ${streetNumber} - Status: ${address.status}`);
+      const streetNumber = showNumbers ? (address.street_number || '') : '';
       const icon = L.divIcon({
         className: "custom-marker",
         html: `<div style="
@@ -624,6 +624,8 @@ export default function MapView() {
         <StatusFilter
           selectedStatuses={statusFilter}
           onStatusChange={setStatusFilter}
+          showNumbers={showNumbers}
+          onShowNumbersChange={setShowNumbers}
         />
         <Button
           onClick={toggleAddMode}

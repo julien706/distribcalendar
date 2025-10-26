@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
-import { Filter, X } from "lucide-react";
+import { Filter, X, Hash } from "lucide-react";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
+import { Switch } from "./ui/switch";
 import {
   Popover,
   PopoverContent,
@@ -14,9 +15,11 @@ import {
 type StatusFilterProps = {
   selectedStatuses: StatusType[];
   onStatusChange: (statuses: StatusType[]) => void;
+  showNumbers: boolean;
+  onShowNumbersChange: (show: boolean) => void;
 };
 
-export default function StatusFilter({ selectedStatuses, onStatusChange }: StatusFilterProps) {
+export default function StatusFilter({ selectedStatuses, onStatusChange, showNumbers, onShowNumbersChange }: StatusFilterProps) {
   const [open, setOpen] = useState(false);
   const allStatuses = Object.keys(STATUS_CONFIG) as StatusType[];
   const allSelected = selectedStatuses.length === allStatuses.length;
@@ -117,6 +120,22 @@ export default function StatusFilter({ selectedStatuses, onStatusChange }: Statu
                 </div>
               );
             })}
+          </div>
+
+          <div className="pt-2 border-t">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Hash className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="show-numbers" className="text-sm cursor-pointer">
+                  Afficher les numéros
+                </Label>
+              </div>
+              <Switch
+                id="show-numbers"
+                checked={showNumbers}
+                onCheckedChange={onShowNumbersChange}
+              />
+            </div>
           </div>
 
           <div className="pt-2 border-t text-xs text-muted-foreground">
