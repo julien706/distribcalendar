@@ -9,6 +9,13 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { MapPin, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { STATUS_CONFIG } from "@/lib/statusConfig";
@@ -43,6 +50,20 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
+  const fetchStreets = async () => {
+    const { data, error } = await supabase
+      .from("addresses")
+      .select("street_name")
+      .order("street_name");
+
+    if (error) {
+      toast.error("Erreur lors du chargement des rues");
+    } else {
+      const uniqueStreets = Array.from(new Set((data || []).map(addr => addr.street_name))).sort();
+      setStreets(uniqueStreets);
+    }
+  };
+
   const fetchAddresses = async (reset: boolean = false) => {
     if (reset) setLoading(true);
 
@@ -67,15 +88,13 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     } else {
       setAddresses((prev) => (reset ? (data || []) : [...prev, ...(data || [])]));
       setHasMore((data?.length || 0) === PAGE_SIZE);
-      
-      // Extract unique street names for filter on reset
-      if (reset) {
-        const uniqueStreets = Array.from(new Set((data || []).map(addr => addr.street_name))).sort();
-        setStreets(uniqueStreets);
-      }
     }
     if (reset) setLoading(false);
   };
+
+  useEffect(() => {
+    fetchStreets();
+  }, []);
 
   useEffect(() => {
     // Reset pagination on filter changes
@@ -97,6 +116,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
           setPage(0);
           setHasMore(true);
           fetchAddresses(true);
+          fetchStreets();
         }
       )
       .subscribe();
@@ -156,39 +176,22 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
 
         <div>
           <label className="text-xs sm:text-sm font-medium mb-2 block">Filtrer par rue</label>
-          <div className="overflow-x-auto pb-2 -mx-3 px-3">
-            <div className="flex gap-2 min-w-max">
-              <Button
-                size="sm"
-                variant={streetFilter === null ? "default" : "outline"}
-                onClick={() => setStreetFilter(null)}
-                className="h-8 text-xs whitespace-nowrap touch-manipulation"
-              >
-                Toutes les rues
-              </Button>
-              {streets.slice(0, 10).map((street) => (
-                <Button
-                  key={street}
-                  size="sm"
-                  variant={streetFilter === street ? "default" : "outline"}
-                  onClick={() => setStreetFilter(street)}
-                  className="h-8 text-xs whitespace-nowrap touch-manipulation"
-                >
+          <Select
+            value={streetFilter || "all"}
+            onValueChange={(value) => setStreetFilter(value === "all" ? null : value)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Sélectionner une rue" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les rues ({streets.length})</SelectItem>
+              {streets.map((street) => (
+                <SelectItem key={street} value={street}>
                   {street}
-                </Button>
+                </SelectItem>
               ))}
-              {streets.length > 10 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs whitespace-nowrap"
-                  disabled
-                >
-                  +{streets.length - 10} autres
-                </Button>
-              )}
-            </div>
-          </div>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
