@@ -1,12 +1,14 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-const AUTH_CODE = "1234"; // Code PIN par défaut
+const DEFAULT_AUTH_CODE = "1234"; // Code PIN par défaut
+const AUTH_CODE_STORAGE_KEY = "app_auth_code";
 const AUTH_STORAGE_KEY = "app_authenticated";
 
 type AuthContextType = {
   isAuthenticated: boolean;
   login: (code: string) => boolean;
   logout: () => void;
+  changeCode: (oldCode: string, newCode: string) => boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,10 +21,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (stored === "true") {
       setIsAuthenticated(true);
     }
+    // Initialize code if not set
+    if (!localStorage.getItem(AUTH_CODE_STORAGE_KEY)) {
+      localStorage.setItem(AUTH_CODE_STORAGE_KEY, DEFAULT_AUTH_CODE);
+    }
   }, []);
 
+  const getStoredCode = () => {
+    return localStorage.getItem(AUTH_CODE_STORAGE_KEY) || DEFAULT_AUTH_CODE;
+  };
+
   const login = (code: string) => {
-    if (code === AUTH_CODE) {
+    if (code === getStoredCode()) {
       setIsAuthenticated(true);
       localStorage.setItem(AUTH_STORAGE_KEY, "true");
       return true;
@@ -35,8 +45,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(AUTH_STORAGE_KEY);
   };
 
+  const changeCode = (oldCode: string, newCode: string) => {
+    if (oldCode === getStoredCode()) {
+      localStorage.setItem(AUTH_CODE_STORAGE_KEY, newCode);
+      return true;
+    }
+    return false;
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, login, logout, changeCode }}>
       {children}
     </AuthContext.Provider>
   );

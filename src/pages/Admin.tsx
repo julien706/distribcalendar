@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import CSVImporter from "@/components/CSVImporter";
-import { ArrowLeft, Upload, LogOut, Trash2 } from "lucide-react";
+import { ArrowLeft, Upload, LogOut, Trash2, Key, Download } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,12 +18,25 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export default function Admin() {
   const [showImporter, setShowImporter] = useState(false);
-  const { logout } = useAuth();
+  const [showChangeCode, setShowChangeCode] = useState(false);
+  const [oldCode, setOldCode] = useState("");
+  const [newCode, setNewCode] = useState("");
+  const [confirmCode, setConfirmCode] = useState("");
+  const { logout, changeCode } = useAuth();
   const navigate = useNavigate();
 
   const handleDeleteAll = async () => {
@@ -37,6 +52,78 @@ export default function Admin() {
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const handleChangeCode = () => {
+    if (newCode !== confirmCode) {
+      toast.error("Les nouveaux codes ne correspondent pas");
+      return;
+    }
+    if (newCode.length !== 4 || !/^\d+$/.test(newCode)) {
+      toast.error("Le code doit contenir exactement 4 chiffres");
+      return;
+    }
+    if (changeCode(oldCode, newCode)) {
+      toast.success("Code modifié avec succès");
+      setShowChangeCode(false);
+      setOldCode("");
+      setNewCode("");
+      setConfirmCode("");
+    } else {
+      toast.error("Ancien code incorrect");
+    }
+  };
+
+  const exportToCSV = async (statusFilter?: ("done" | "pending" | "refused" | "retry_first" | "retry_second" | "uninhabited")[], withObservations?: boolean) => {
+    let query = supabase.from("addresses").select("*").order("street_name");
+    
+    if (statusFilter && statusFilter.length > 0) {
+      query = query.in("status", statusFilter);
+    }
+    
+    if (withObservations) {
+      query = query.not("observations", "is", null);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      toast.error("Erreur lors de l'export");
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      toast.info("Aucune donnée à exporter");
+      return;
+    }
+
+    // Convert to CSV
+    const headers = ["Rue", "Numéro", "Statut", "Observations", "Latitude", "Longitude", "Dernière visite"];
+    const csvContent = [
+      headers.join(","),
+      ...data.map(row => [
+        `"${row.street_name}"`,
+        `"${row.street_number || ""}"`,
+        `"${row.status}"`,
+        `"${row.observations || ""}"`,
+        row.latitude,
+        row.longitude,
+        row.last_visit_date || ""
+      ].join(","))
+    ].join("\n");
+
+    // Download file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `export_${statusFilter?.join("_") || "all"}_${Date.now()}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success(`${data.length} adresse(s) exportée(s)`);
   };
 
   return (
@@ -57,6 +144,109 @@ export default function Admin() {
       </header>
 
       <div className="container max-w-4xl mx-auto p-4 space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Code de verrouillage
+            </CardTitle>
+            <CardDescription>
+              Modifier le code PIN d'accès à l'application
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Dialog open={showChangeCode} onOpenChange={setShowChangeCode}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Key className="h-4 w-4 mr-2" />
+                  Changer le code
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Modifier le code PIN</DialogTitle>
+                  <DialogDescription>
+                    Le code doit contenir exactement 4 chiffres
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="old-code">Ancien code</Label>
+                    <Input
+                      id="old-code"
+                      type="password"
+                      maxLength={4}
+                      value={oldCode}
+                      onChange={(e) => setOldCode(e.target.value)}
+                      className="text-center text-xl tracking-widest"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-code">Nouveau code</Label>
+                    <Input
+                      id="new-code"
+                      type="password"
+                      maxLength={4}
+                      value={newCode}
+                      onChange={(e) => setNewCode(e.target.value)}
+                      className="text-center text-xl tracking-widest"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="confirm-code">Confirmer le nouveau code</Label>
+                    <Input
+                      id="confirm-code"
+                      type="password"
+                      maxLength={4}
+                      value={confirmCode}
+                      onChange={(e) => setConfirmCode(e.target.value)}
+                      className="text-center text-xl tracking-widest"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowChangeCode(false)}>
+                    Annuler
+                  </Button>
+                  <Button onClick={handleChangeCode}>
+                    Modifier
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5" />
+              Exporter les données
+            </CardTitle>
+            <CardDescription>
+              Télécharger les adresses au format CSV
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button variant="outline" className="w-full justify-start" onClick={() => exportToCSV(["done"])}>
+              <Download className="h-4 w-4 mr-2" />
+              Exporter les maisons faites
+            </Button>
+            <Button variant="outline" className="w-full justify-start" onClick={() => exportToCSV(["refused"])}>
+              <Download className="h-4 w-4 mr-2" />
+              Exporter les maisons non répondues
+            </Button>
+            <Button variant="outline" className="w-full justify-start" onClick={() => exportToCSV(undefined, true)}>
+              <Download className="h-4 w-4 mr-2" />
+              Exporter avec observations
+            </Button>
+            <Button variant="outline" className="w-full justify-start" onClick={() => exportToCSV()}>
+              <Download className="h-4 w-4 mr-2" />
+              Exporter toutes les adresses
+            </Button>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
