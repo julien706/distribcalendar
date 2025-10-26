@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import MapView from "@/components/MapView";
 import AddressList from "@/components/AddressList";
 import AddressForm from "@/components/AddressForm";
-import CSVImporter from "@/components/CSVImporter";
-import { Map, List, Upload } from "lucide-react";
+import { Map, List, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Address = {
   id: string;
@@ -19,8 +20,15 @@ type Address = {
 
 export default function Index() {
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
-  const [showImporter, setShowImporter] = useState(false);
   const [activeTab, setActiveTab] = useState("map");
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/login");
+    }
+  }, [isAuthenticated, navigate]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -28,9 +36,9 @@ export default function Index() {
       <header className="border-b sticky top-0 z-[11000] bg-background/95 backdrop-blur">
         <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
           <h1 className="text-base sm:text-xl font-bold truncate">Distribution Calendriers</h1>
-          <Button onClick={() => setShowImporter(true)} size="sm" className="h-9 px-3">
-            <Upload className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Importer</span>
+          <Button onClick={() => navigate("/admin")} size="sm" variant="outline" className="h-9 px-3">
+            <Settings className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Admin</span>
           </Button>
         </div>
       </header>
@@ -81,9 +89,6 @@ export default function Index() {
         open={!!selectedAddress}
         onClose={() => setSelectedAddress(null)}
       />
-
-      {/* CSV importer */}
-      <CSVImporter open={showImporter} onClose={() => setShowImporter(false)} />
     </div>
   );
 }

@@ -9,20 +9,10 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
-import { MapPin, RefreshCw, Trash2 } from "lucide-react";
+import { MapPin, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { STATUS_CONFIG } from "@/lib/statusConfig";
+import StatisticsCard from "./StatisticsCard";
 
 type Address = {
   id: string;
@@ -121,49 +111,16 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     return acc;
   }, {} as Record<string, number>);
 
-  const handleDeleteAll = async () => {
-    const { error } = await supabase.from("addresses").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-
-    if (error) {
-      toast.error("Erreur lors de la suppression");
-    } else {
-      toast.success("Toutes les adresses ont été supprimées");
-      setAddresses([]);
-      setStreets([]);
-    }
-  };
-
   return (
     <div className="space-y-3 p-3 sm:p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl sm:text-2xl font-bold">Adresses</h2>
-        <div className="flex gap-2">
-          <Button size="icon" variant="outline" onClick={() => { setPage(0); setHasMore(true); setAddresses([]); fetchAddresses(true); }} className="h-9 w-9">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="icon" variant="destructive" className="h-9 w-9">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Supprimer toutes les adresses ?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Cette action est irréversible. Toutes les adresses et leur historique seront définitivement supprimés.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Supprimer tout
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+        <Button size="icon" variant="outline" onClick={() => { setPage(0); setHasMore(true); setAddresses([]); fetchAddresses(true); }} className="h-9 w-9">
+          <RefreshCw className="h-4 w-4" />
+        </Button>
       </div>
+
+      <StatisticsCard totalAddresses={addresses.length} statusCounts={statusCounts} />
 
       <div className="space-y-3">
         <div>
