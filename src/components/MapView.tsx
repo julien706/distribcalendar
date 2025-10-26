@@ -9,6 +9,7 @@ import { createPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
 import { Navigation, Lasso, X, Trash2, MapPin, Layers, Route, Hexagon } from "lucide-react";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
+import { useAuth } from "@/contexts/AuthContext";
 import AddAddressDialog from "./AddAddressDialog";
 import EditManualAddressDialog from "./EditManualAddressDialog";
 import StatusFilter from "./StatusFilter";
@@ -46,6 +47,7 @@ type Zone = {
 };
 
 export default function MapView() {
+  const { isAdmin } = useAuth();
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.Marker[]>([]);
@@ -894,19 +896,21 @@ export default function MapView() {
         >
           <Route className="h-5 w-5" />
         </Button>
-        <Button
-          onClick={toggleZoneMode}
-          size="icon"
-          variant={zoneMode ? "default" : "outline"}
-          className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
-          title="Définir une zone"
-        >
-          {zoneMode ? (
-            <X className="h-5 w-5" />
-          ) : (
-            <Hexagon className="h-5 w-5" />
-          )}
-        </Button>
+        {isAdmin && (
+          <Button
+            onClick={toggleZoneMode}
+            size="icon"
+            variant={zoneMode ? "default" : "outline"}
+            className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
+            title="Définir une zone"
+          >
+            {zoneMode ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Hexagon className="h-5 w-5" />
+            )}
+          </Button>
+        )}
         <Button
           onClick={handleGeolocate}
           disabled={isLocating}

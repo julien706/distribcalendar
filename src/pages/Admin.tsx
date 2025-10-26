@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import CSVImporter from "@/components/CSVImporter";
 import ZoneManagement from "@/components/ZoneManagement";
-import { ArrowLeft, Upload, LogOut, Trash2, Key, Download, Shield, RotateCcw, Users } from "lucide-react";
+import UserManagement from "@/components/UserManagement";
+import { ArrowLeft, Upload, LogOut, Trash2, Key, Download, Shield, RotateCcw, Users, AlertTriangle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,12 +42,14 @@ export default function Admin() {
   const [invitationCode, setInvitationCode] = useState("");
   const [newInvitationCode, setNewInvitationCode] = useState("");
   const [loadingInvitation, setLoadingInvitation] = useState(false);
-  const { signOut } = useAuth();
+  const { signOut, isAdmin, userRole, userTeamId } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchInvitationCode();
-  }, []);
+    if (isAdmin) {
+      fetchInvitationCode();
+    }
+  }, [isAdmin]);
 
   const handleDeleteAll = async () => {
     const { error } = await supabase.from("addresses").delete().neq("id", "00000000-0000-0000-0000-000000000000");
@@ -228,6 +232,10 @@ export default function Admin() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-xl font-bold">Administration</h1>
+            <Badge variant={isAdmin ? "default" : "secondary"}>
+              <Shield className="h-3 w-3 mr-1" />
+              {userRole || "user"}
+            </Badge>
           </div>
           <Button variant="outline" size="sm" onClick={handleLogout}>
             <LogOut className="h-4 w-4 mr-2" />
@@ -237,24 +245,43 @@ export default function Admin() {
       </header>
 
       <div className="container max-w-4xl mx-auto p-4 space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Gestion des équipes et zones
-            </CardTitle>
-            <CardDescription>
-              Organisez vos distributeurs en équipes et assignez-leur des zones
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button onClick={() => navigate("/teams")} className="w-full">
-              <Users className="h-4 w-4 mr-2" />
-              Gérer les équipes
-            </Button>
-            <ZoneManagement />
-          </CardContent>
-        </Card>
+        {!userTeamId && !isAdmin && (
+          <Card className="border-orange-500">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-orange-500 mt-0.5" />
+                <div>
+                  <p className="font-semibold">Aucune équipe assignée</p>
+                  <p className="text-sm text-muted-foreground">
+                    Vous n'êtes pas encore assigné à une équipe. Contactez un administrateur pour être ajouté à une équipe.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isAdmin && <UserManagement />}
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Gestion des équipes et zones
+              </CardTitle>
+              <CardDescription>
+                Organisez vos distributeurs en équipes et assignez-leur des zones
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button onClick={() => navigate("/teams")} className="w-full">
+                <Users className="h-4 w-4 mr-2" />
+                Gérer les équipes
+              </Button>
+              <ZoneManagement />
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -316,12 +343,13 @@ export default function Admin() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Code d'invitation
-            </CardTitle>
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Code d'invitation
+              </CardTitle>
             <CardDescription>
               Gérer le code requis pour les nouvelles inscriptions
             </CardDescription>
@@ -383,8 +411,10 @@ export default function Admin() {
             </Dialog>
           </CardContent>
         </Card>
+        )}
 
-        <Card>
+        {isAdmin && (
+          <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Download className="h-5 w-5" />
@@ -413,8 +443,10 @@ export default function Admin() {
             </Button>
           </CardContent>
         </Card>
+        )}
 
-        <Card>
+        {isAdmin && (
+          <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
@@ -431,8 +463,10 @@ export default function Admin() {
             </Button>
           </CardContent>
         </Card>
+        )}
 
-        <Card>
+        {isAdmin && (
+          <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <RotateCcw className="h-5 w-5" />
@@ -474,8 +508,10 @@ export default function Admin() {
             </AlertDialog>
           </CardContent>
         </Card>
+        )}
 
-        <Card>
+        {isAdmin && (
+          <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Trash2 className="h-5 w-5" />
@@ -510,6 +546,7 @@ export default function Admin() {
             </AlertDialog>
           </CardContent>
         </Card>
+        )}
       </div>
 
       <CSVImporter open={showImporter} onClose={() => setShowImporter(false)} />
