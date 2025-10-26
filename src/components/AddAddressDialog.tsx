@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -27,6 +27,17 @@ export default function AddAddressDialog({
   const [observations, setObservations] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (open) {
+      console.log("Dialog opened with coords:", latitude, longitude);
+      setStreetName("");
+      setStreetNumber("");
+      setObservations("");
+      setLoading(false);
+    }
+  }, [open, latitude, longitude]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!streetName.trim()) {
@@ -35,22 +46,23 @@ export default function AddAddressDialog({
     }
 
     setLoading(true);
+    console.log("Submitting address:", { streetName, streetNumber, latitude, longitude });
+    
     try {
-      const { error } = await supabase.from("addresses").insert({
+      const { data, error } = await supabase.from("addresses").insert({
         street_name: streetName.trim(),
         street_number: streetNumber.trim() || null,
         latitude,
         longitude,
         status: "pending",
         observations: observations.trim() || null,
-      });
+      }).select();
+
+      console.log("Insert result:", { data, error });
 
       if (error) throw error;
 
       toast.success("Adresse ajoutée avec succès");
-      setStreetName("");
-      setStreetNumber("");
-      setObservations("");
       onOpenChange(false);
       onSuccess();
     } catch (error) {
@@ -66,6 +78,9 @@ export default function AddAddressDialog({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Ajouter une adresse</DialogTitle>
+          <DialogDescription>
+            Ajoutez une nouvelle adresse à la liste en cliquant sur la carte.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

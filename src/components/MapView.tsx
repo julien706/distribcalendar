@@ -72,21 +72,34 @@ export default function MapView() {
     map.addLayer(drawnItems);
     drawnItemsRef.current = drawnItems;
 
-    // Handle map clicks for adding addresses
-    map.on('click', (e: L.LeafletMouseEvent) => {
-      if (addMode) {
-        setNewAddressCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
-        setShowAddDialog(true);
-      }
-    });
-
     return () => {
       if (drawControlRef.current) {
         map.removeControl(drawControlRef.current);
       }
-      map.off('click');
       map.remove();
       mapRef.current = null;
+    };
+  }, []);
+
+  // Handle map clicks for adding addresses
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    const handleMapClick = (e: L.LeafletMouseEvent) => {
+      console.log("Map clicked, addMode:", addMode);
+      if (addMode) {
+        console.log("Setting new address coords:", e.latlng.lat, e.latlng.lng);
+        setNewAddressCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
+        setShowAddDialog(true);
+      }
+    };
+
+    mapRef.current.on('click', handleMapClick);
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.off('click', handleMapClick);
+      }
     };
   }, [addMode]);
 
