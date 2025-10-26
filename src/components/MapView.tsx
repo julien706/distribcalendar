@@ -329,10 +329,23 @@ export default function MapView() {
       const intersect = (yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
       if (intersect) inside = !inside;
     }
-
+ 
     return inside;
   };
 
+  const getContrastingTextColor = (hex: string) => {
+    try {
+      const c = hex.replace('#','');
+      const r = parseInt(c.substring(0,2), 16);
+      const g = parseInt(c.substring(2,4), 16);
+      const b = parseInt(c.substring(4,6), 16);
+      const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+      return brightness > 160 ? '#111827' : '#FFFFFF';
+    } catch {
+      return '#FFFFFF';
+    }
+  };
+ 
   const handleDeleteSelected = async () => {
     console.log("Deleting addresses:", selectedAddresses);
     try {
@@ -485,6 +498,7 @@ export default function MapView() {
       
       // Determine if this is a manually added address (no csv_data)
       const isManuallyAdded = !address.csv_data;
+      const textColor = getContrastingTextColor(color);
       
       // Create custom icon with selection ring
       const streetNumber = address.street_number || '';
@@ -504,7 +518,7 @@ export default function MapView() {
           justify-content: center;
           font-size: 13px;
           font-weight: 700;
-          color: white;
+          color: ${textColor};
           text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3);
           line-height: 1;
         ">${streetNumber}</div>`,
