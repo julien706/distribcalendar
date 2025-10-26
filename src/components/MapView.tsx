@@ -7,11 +7,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
-import { Navigation, Lasso, X, Trash2, MapPin, Layers } from "lucide-react";
+import { Navigation, Lasso, X, Trash2, MapPin, Layers, Route } from "lucide-react";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
 import AddAddressDialog from "./AddAddressDialog";
 import EditManualAddressDialog from "./EditManualAddressDialog";
 import StatusFilter from "./StatusFilter";
+import RouteOptimizer from "./RouteOptimizer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,6 +59,10 @@ export default function MapView() {
   const [movingAddressId, setMovingAddressId] = useState<string | null>(null);
   const [showEditManual, setShowEditManual] = useState(false);
   const [editingManual, setEditingManual] = useState<{ id: string; street_name: string; street_number: string | null; observations: string | null } | null>(null);
+  const [showRouteOptimizer, setShowRouteOptimizer] = useState(false);
+  const [optimizedRoute, setOptimizedRoute] = useState<Address[]>([]);
+  const routeLineRef = useRef<L.Polyline | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   
   // Map layers state
   const [currentLayer, setCurrentLayer] = useState<'osm' | 'satellite' | 'hybrid'>(() => {
@@ -207,6 +212,7 @@ export default function MapView() {
             .addTo(mapRef.current!);
 
           userLocationMarkerRef.current = marker;
+          setUserLocation([latitude, longitude]);
 
           // Center map on user location
           mapRef.current.setView([latitude, longitude], 18);
@@ -729,6 +735,15 @@ export default function MapView() {
           <Layers className="h-5 w-5" />
         </Button>
         <Button
+          onClick={() => setShowRouteOptimizer(true)}
+          size="icon"
+          variant="outline"
+          className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
+          title="Planifier un itinéraire"
+        >
+          <Route className="h-5 w-5" />
+        </Button>
+        <Button
           onClick={handleGeolocate}
           disabled={isLocating}
           size="icon"
@@ -782,6 +797,32 @@ export default function MapView() {
           setAddresses((prev) => prev.map(a => a.id === editingManual.id ? { ...a, street_name: u.street_name, street_number: u.street_number, observations: u.observations } : a));
           setEditingManual(null);
         }}
+      />
+
+      {/* Route Optimizer Dialog */}
+      <RouteOptimizer
+        open={showRouteOptimizer}
+        onClose={() => setShowRouteOptimizer(false)}
+        onRouteGenerated={(route) => {
+          setOptimizedRoute(route);
+          
+          // Draw route on map
+          if (routeLineRef.current) {
+            mapRef.current?.removeLayer(routeLineRef.current);
+          }
+
+          const points: [number, number][] = route.map(addr => [addr.latitude, addr.longitude]);
+          routeLineRef.current = L.polyline(points, {
+            color: '#3b82f6',
+            weight: 4,
+            opacity: 0.7,
+            dashArray: '10, 10'
+          }).addTo(mapRef.current!);
+
+          // Fit bounds to route
+          mapRef.current?.fitBounds(routeLineRef.current.getBounds(), { padding: [50, 50] });
+        }}
+        userLocation={userLocation ? { lat: userLocation[0], lng: userLocation[1] } : undefined}
       />
     </div>
   );
