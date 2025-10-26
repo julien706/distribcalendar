@@ -45,6 +45,16 @@ export default function QuickDistributionMode({ onClose, route }: QuickDistribut
     if (!route || route.length === 0) {
       fetchPendingAddresses();
     } else {
+      // Sort route by street name and number
+      const sorted = [...route].sort((a, b) => {
+        if (a.street_name !== b.street_name) {
+          return a.street_name.localeCompare(b.street_name);
+        }
+        const numA = parseInt(a.street_number || "0");
+        const numB = parseInt(b.street_number || "0");
+        return numA - numB;
+      });
+      setAddresses(sorted);
       updateStats();
     }
     initMap();
@@ -133,15 +143,37 @@ export default function QuickDistributionMode({ onClose, route }: QuickDistribut
     const { data, error } = await supabase
       .from("addresses")
       .select("*")
-      .eq("status", "pending")
-      .order("street_name");
+      .eq("status", "pending");
 
     if (error) {
       toast.error("Erreur lors du chargement");
       return;
     }
 
-    setAddresses(data || []);
+    // Sort by street name, then by street number (ascending)
+    const sorted = (data || []).sort((a, b) => {
+      if (a.street_name !== b.street_name) {
+        return a.street_name.localeCompare(b.street_name);
+      }
+      const numA = parseInt(a.street_number || "0");
+      const numB = parseInt(b.street_number || "0");
+      return numA - numB;
+    });
+
+    // If user location is available, start with the closest address
+    if (userLocation) {
+      const withDistance = sorted.map(addr => ({
+        ...addr,
+        distance: Math.sqrt(
+          Math.pow(addr.latitude - userLocation.lat, 2) + 
+          Math.pow(addr.longitude - userLocation.lng, 2)
+        )
+      }));
+      withDistance.sort((a, b) => a.distance - b.distance);
+      setAddresses(withDistance);
+    } else {
+      setAddresses(sorted);
+    }
   };
 
   const updateStats = () => {
@@ -270,23 +302,59 @@ export default function QuickDistributionMode({ onClose, route }: QuickDistribut
         </Button>
 
         {/* Status Buttons */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2">
           <Button
             size="lg"
-            className="h-16 bg-green-500 hover:bg-green-600 text-white text-lg"
+            className="h-14 bg-green-500 hover:bg-green-600 text-white"
             onClick={() => updateAddressStatus("done")}
           >
-            <CheckCircle2 className="h-6 w-6 mr-2" />
+            <CheckCircle2 className="h-5 w-5 mr-1" />
             Distribué
           </Button>
           <Button
             size="lg"
             variant="destructive"
-            className="h-16 text-lg"
+            className="h-14"
             onClick={() => updateAddressStatus("refused")}
           >
-            <XCircle className="h-6 w-6 mr-2" />
+            <XCircle className="h-5 w-5 mr-1" />
             Refusé
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-14 border-purple-500 text-purple-700"
+            onClick={() => updateAddressStatus("no_answer")}
+          >
+            <Clock className="h-5 w-5 mr-1" />
+            Pas de réponse
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-14 border-orange-500 text-orange-700"
+            onClick={() => updateAddressStatus("retry_first")}
+          >
+            <Clock className="h-5 w-5 mr-1" />
+            À repasser 1
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-14 border-orange-600 text-orange-800"
+            onClick={() => updateAddressStatus("retry_second")}
+          >
+            <Clock className="h-5 w-5 mr-1" />
+            À repasser 2
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-14 border-gray-500 text-gray-700"
+            onClick={() => updateAddressStatus("uninhabited")}
+          >
+            <Home className="h-5 w-5 mr-1" />
+            Inhabité
           </Button>
         </div>
 
