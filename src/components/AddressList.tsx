@@ -134,16 +134,16 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
   };
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-3 p-3 sm:p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Adresses</h2>
+        <h2 className="text-xl sm:text-2xl font-bold">Adresses</h2>
         <div className="flex gap-2">
-          <Button size="icon" variant="outline" onClick={() => { setPage(0); setHasMore(true); setAddresses([]); fetchAddresses(true); }}>
+          <Button size="icon" variant="outline" onClick={() => { setPage(0); setHasMore(true); setAddresses([]); fetchAddresses(true); }} className="h-9 w-9">
             <RefreshCw className="h-4 w-4" />
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button size="icon" variant="destructive">
+              <Button size="icon" variant="destructive" className="h-9 w-9">
                 <Trash2 className="h-4 w-4" />
               </Button>
             </AlertDialogTrigger>
@@ -167,74 +167,80 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
 
       <div className="space-y-3">
         <div>
-          <label className="text-sm font-medium mb-2 block">Filtrer par statut</label>
-          <div className="flex gap-2 flex-wrap">
-            <Button
-              size="sm"
-              variant={filter === null ? "default" : "outline"}
-              onClick={() => setFilter(null)}
-            >
-              Toutes ({addresses.length})
-            </Button>
-            {Object.entries(STATUS_CONFIG).map(([key, config]) => {
-              const Icon = config.icon;
-              return (
-                <Button
-                  key={key}
-                  size="sm"
-                  variant={filter === key ? "default" : "outline"}
-                  onClick={() => setFilter(key as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited")}
-                  className="gap-1"
-                >
-                  <Icon className="h-3 w-3" />
-                  {config.label} ({statusCounts[key] || 0})
-                </Button>
-              );
-            })}
+          <label className="text-xs sm:text-sm font-medium mb-2 block">Filtrer par statut</label>
+          <div className="overflow-x-auto pb-2 -mx-3 px-3">
+            <div className="flex gap-2 min-w-max">
+              <Button
+                size="sm"
+                variant={filter === null ? "default" : "outline"}
+                onClick={() => setFilter(null)}
+                className="h-8 text-xs whitespace-nowrap touch-manipulation"
+              >
+                Toutes ({addresses.length})
+              </Button>
+              {Object.entries(STATUS_CONFIG).map(([key, config]) => {
+                const Icon = config.icon;
+                return (
+                  <Button
+                    key={key}
+                    size="sm"
+                    variant={filter === key ? "default" : "outline"}
+                    onClick={() => setFilter(key as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited")}
+                    className="h-8 text-xs gap-1 whitespace-nowrap touch-manipulation"
+                  >
+                    <Icon className="h-3 w-3" />
+                    {config.label} ({statusCounts[key] || 0})
+                  </Button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         <div>
-          <label className="text-sm font-medium mb-2 block">Filtrer par rue</label>
-          <div className="flex gap-2 flex-wrap">
-            <Button
-              size="sm"
-              variant={streetFilter === null ? "default" : "outline"}
-              onClick={() => setStreetFilter(null)}
-            >
-              Toutes les rues
-            </Button>
-            {streets.slice(0, 10).map((street) => (
-              <Button
-                key={street}
-                size="sm"
-                variant={streetFilter === street ? "default" : "outline"}
-                onClick={() => setStreetFilter(street)}
-                className="text-xs"
-              >
-                {street}
-              </Button>
-            ))}
-            {streets.length > 10 && (
+          <label className="text-xs sm:text-sm font-medium mb-2 block">Filtrer par rue</label>
+          <div className="overflow-x-auto pb-2 -mx-3 px-3">
+            <div className="flex gap-2 min-w-max">
               <Button
                 size="sm"
-                variant="outline"
-                className="text-xs"
-                disabled
+                variant={streetFilter === null ? "default" : "outline"}
+                onClick={() => setStreetFilter(null)}
+                className="h-8 text-xs whitespace-nowrap touch-manipulation"
               >
-                +{streets.length - 10} autres
+                Toutes les rues
               </Button>
-            )}
+              {streets.slice(0, 10).map((street) => (
+                <Button
+                  key={street}
+                  size="sm"
+                  variant={streetFilter === street ? "default" : "outline"}
+                  onClick={() => setStreetFilter(street)}
+                  className="h-8 text-xs whitespace-nowrap touch-manipulation"
+                >
+                  {street}
+                </Button>
+              ))}
+              {streets.length > 10 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs whitespace-nowrap"
+                  disabled
+                >
+                  +{streets.length - 10} autres
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-8 text-muted-foreground">
+        <div className="text-center py-8 text-muted-foreground text-sm">
           Chargement...
         </div>
       ) : addresses.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
+        <div className="text-center py-8 text-muted-foreground text-sm">
           Aucune adresse trouvée
         </div>
       ) : (
@@ -242,21 +248,21 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
           {addresses.map((address) => (
             <Card
               key={address.id}
-              className="cursor-pointer hover:bg-accent/50 transition-colors"
+              className="cursor-pointer hover:bg-accent/50 transition-colors touch-manipulation active:scale-[0.98]"
               onClick={() => onSelectAddress(address)}
             >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-base">
+              <CardHeader className="pb-3 px-3 py-3 sm:px-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-sm sm:text-base truncate">
                       {address.street_number || ""} {address.street_name}
                     </CardTitle>
-                    <CardDescription className="text-xs mt-1">
+                    <CardDescription className="text-xs mt-1 truncate">
                       <MapPin className="inline h-3 w-3 mr-1" />
                       {address.latitude.toFixed(6)}, {address.longitude.toFixed(6)}
                     </CardDescription>
                   </div>
-                  <Badge variant={STATUS_VARIANTS[address.status as keyof typeof STATUS_VARIANTS] || "secondary"}>
+                  <Badge variant={STATUS_VARIANTS[address.status as keyof typeof STATUS_VARIANTS] || "secondary"} className="shrink-0 text-xs">
                     {(() => {
                       const config = STATUS_CONFIG[address.status as keyof typeof STATUS_CONFIG];
                       if (config) {
@@ -264,7 +270,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
                         return (
                           <span className="flex items-center gap-1">
                             <Icon className="h-3 w-3" />
-                            {config.label}
+                            <span className="hidden sm:inline">{config.label}</span>
                           </span>
                         );
                       }
@@ -274,8 +280,8 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
                 </div>
               </CardHeader>
               {address.observations && (
-                <CardContent className="pt-0">
-                  <p className="text-sm text-muted-foreground">
+                <CardContent className="pt-0 px-3 pb-3 sm:px-4">
+                  <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
                     {address.observations}
                   </p>
                 </CardContent>
@@ -292,6 +298,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
                   setPage(nextPage);
                   await fetchAddresses(false);
                 }}
+                className="touch-manipulation"
               >
                 Charger plus
               </Button>

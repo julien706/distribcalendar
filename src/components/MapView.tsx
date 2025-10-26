@@ -487,26 +487,27 @@ export default function MapView() {
   }, [selectedAddresses, addresses]);
 
   return (
-    <div className="relative w-full h-screen">
+    <div className="relative w-full h-full">
       <div ref={mapContainerRef} className="absolute inset-0" />
       
-      {/* Control Buttons */}
-      <div className="absolute bottom-24 right-4 z-[12000] pointer-events-auto flex flex-col gap-2 items-end">
+      {/* Control Buttons - Mobile optimized */}
+      <div className="absolute bottom-4 right-3 z-[12000] pointer-events-auto flex flex-col gap-2 sm:gap-3 items-end">
         {selectedAddresses.length > 0 && (
           <Button
             onClick={() => setShowDeleteDialog(true)}
             variant="destructive"
-            className="h-12 rounded-full shadow-lg px-4 flex items-center gap-2"
+            className="h-12 w-12 sm:h-auto sm:w-auto rounded-full shadow-lg sm:px-4 flex items-center justify-center sm:gap-2"
           >
             <Trash2 className="h-5 w-5" />
-            Supprimer ({selectedAddresses.length})
+            <span className="hidden sm:inline">Supprimer ({selectedAddresses.length})</span>
           </Button>
         )}
         <Button
           onClick={toggleAddMode}
           size="icon"
           variant={addMode ? "default" : "outline"}
-          className="h-12 w-12 rounded-full shadow-lg"
+          className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
+          title="Ajouter une adresse"
         >
           {addMode ? (
             <X className="h-5 w-5" />
@@ -518,7 +519,8 @@ export default function MapView() {
           onClick={toggleLassoMode}
           size="icon"
           variant={lassoMode ? "default" : "outline"}
-          className="h-12 w-12 rounded-full shadow-lg"
+          className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
+          title="Sélection multiple"
         >
           {lassoMode ? (
             <X className="h-5 w-5" />
@@ -530,7 +532,8 @@ export default function MapView() {
           onClick={handleGeolocate}
           disabled={isLocating}
           size="icon"
-          className="h-12 w-12 rounded-full shadow-lg"
+          className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
+          title="Ma position"
         >
           <Navigation className={`h-5 w-5 ${isLocating ? "animate-pulse" : ""}`} />
         </Button>
