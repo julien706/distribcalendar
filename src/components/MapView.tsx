@@ -10,6 +10,7 @@ import { Button } from "./ui/button";
 import { Navigation, Lasso, X, Trash2, MapPin, Layers } from "lucide-react";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
 import AddAddressDialog from "./AddAddressDialog";
+import EditManualAddressDialog from "./EditManualAddressDialog";
 import StatusFilter from "./StatusFilter";
 import {
   AlertDialog,
@@ -55,6 +56,8 @@ export default function MapView() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newAddressCoords, setNewAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [movingAddressId, setMovingAddressId] = useState<string | null>(null);
+  const [showEditManual, setShowEditManual] = useState(false);
+  const [editingManual, setEditingManual] = useState<{ id: string; street_name: string; street_number: string | null; observations: string | null } | null>(null);
   
   // Map layers state
   const [currentLayer, setCurrentLayer] = useState<'osm' | 'satellite' | 'hybrid'>(() => {
@@ -140,6 +143,13 @@ export default function MapView() {
       mapRef.current = null;
     };
   }, []);
+
+  // Toggle double-click zoom during add mode to allow dblclick editing
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (addMode) mapRef.current.doubleClickZoom.disable();
+    else mapRef.current.doubleClickZoom.enable();
+  }, [addMode]);
 
   // Handle map clicks for adding addresses
   useEffect(() => {
@@ -588,6 +598,19 @@ export default function MapView() {
         }
       });
 
+      // Open edit dialog on right click (context menu) or double click when in add mode
+      const openEdit = (e: any) => {
+        if (!(addMode && isManuallyAdded)) return;
+        try {
+          e.originalEvent?.preventDefault?.();
+          e.originalEvent?.stopPropagation?.();
+        } catch {}
+        setEditingManual({ id: address.id, street_name: address.street_name, street_number: address.street_number, observations: address.observations || null });
+        setShowEditManual(true);
+      };
+      marker.on('contextmenu', openEdit);
+      marker.on('dblclick', openEdit);
+
       // Bind popup with interactive content only when not in lasso mode and not in add mode
       if (!lassoMode && !addMode) {
         const popupContent = createPopupContent(address, handleStatusChange);
@@ -748,6 +771,18 @@ export default function MapView() {
           }}
         />
       )}
+
+      {/* Edit Manual Address Dialog */}
+      <EditManualAddressDialog
+        open={showEditManual}
+        onOpenChange={setShowEditManual}
+        address={editingManual}
+        onSuccess={(u) => {
+          if (!editingManual) return;
+          setAddresses((prev) => prev.map(a => a.id === editingManual.id ? { ...a, street_name: u.street_name, street_number: u.street_number, observations: u.observations } : a));
+          setEditingManual(null);
+        }}
+      />
     </div>
   );
 }
