@@ -1,0 +1,215 @@
+import { useState } from "react";
+import Papa from "papaparse";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import { Upload, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "./ui/alert";
+
+export default function CSVImporter({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    setProgress(0);
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data as any[];
+        const total = rows.length;
+        let imported = 0;
+        const batchSize = 50;
+
+        for (let i = 0; i < rows.length; i += batchSize) {
+          const batch = rows.slice(i, i + batchSize);
+          
+          const addresses = batch.map((row) => ({
+            street_name: row.voie_nom || row.lieudit_complement_nom || "Rue inconnue",
+            street_number: row.numero || null,
+            is_even: row.numero ? parseInt(row.numero) % 2 === 0 : null,
+            latitude: parseFloat(row.lat),
+            longitude: parseFloat(row.long),
+            status: "pending" as const,
+            csv_data: row,
+          }));
+
+          const { error } = await supabase.from("addresses").insert(addresses);
+
+          if (error) {
+            console.error("Error importing batch:", error);
+          } else {
+            imported += batch.length;
+            setProgress(Math.round((imported / total) * 100));
+          }
+        }
+
+        setImporting(false);
+        if (imported > 0) {
+          toast.success(`${imported} adresses importées avec succès`);
+          onClose();
+        } else {
+          toast.error("Erreur lors de l'import");
+        }
+      },
+      error: (error) => {
+        console.error("Parse error:", error);
+        toast.error("Erreur lors de la lecture du fichier");
+        setImporting(false);
+      },
+    });
+  };
+
+  const handleImportDefault = async () => {
+    setImporting(true);
+    setProgress(0);
+
+    try {
+      const response = await fetch("/src/data/addresses.csv");
+      const text = await response.text();
+
+      Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          const rows = results.data as any[];
+          const total = rows.length;
+          let imported = 0;
+          const batchSize = 50;
+
+          for (let i = 0; i < rows.length; i += batchSize) {
+            const batch = rows.slice(i, i + batchSize);
+            
+            const addresses = batch.map((row) => ({
+              street_name: row.voie_nom || row.lieudit_complement_nom || "Rue inconnue",
+              street_number: row.numero || null,
+              is_even: row.numero ? parseInt(row.numero) % 2 === 0 : null,
+              latitude: parseFloat(row.lat),
+              longitude: parseFloat(row.long),
+              status: "pending" as const,
+              csv_data: row,
+            }));
+
+            const { error } = await supabase.from("addresses").insert(addresses);
+
+            if (error) {
+              console.error("Error importing batch:", error);
+            } else {
+              imported += batch.length;
+              setProgress(Math.round((imported / total) * 100));
+            }
+          }
+
+          setImporting(false);
+          if (imported > 0) {
+            toast.success(`${imported} adresses importées avec succès`);
+            onClose();
+          } else {
+            toast.error("Erreur lors de l'import");
+          }
+        },
+      });
+    } catch (error) {
+      console.error("Error loading default CSV:", error);
+      toast.error("Erreur lors du chargement du fichier");
+      setImporting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Importer les adresses</DialogTitle>
+          <DialogDescription>
+            Choisissez un fichier CSV à importer ou utilisez les données par défaut
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Le fichier CSV doit contenir les colonnes : voie_nom, numero, lat, long
+            </AlertDescription>
+          </Alert>
+
+          {importing && (
+            <div className="space-y-2">
+              <div className="text-sm text-center text-muted-foreground">
+                Import en cours... {progress}%
+              </div>
+              <div className="w-full bg-secondary rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Button
+              className="w-full"
+              onClick={handleImportDefault}
+              disabled={importing}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Importer les données par défaut
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  ou
+                </span>
+              </div>
+            </div>
+
+            <label>
+              <Button
+                className="w-full"
+                variant="outline"
+                disabled={importing}
+                asChild
+              >
+                <span>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Choisir un fichier CSV
+                </span>
+              </Button>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                className="hidden"
+                disabled={importing}
+              />
+            </label>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
