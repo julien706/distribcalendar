@@ -502,6 +502,7 @@ export default function MapView() {
       
       // Create custom icon with selection ring
       const streetNumber = address.street_number || '';
+      console.log(`Creating marker for ${address.street_name} ${streetNumber} - Status: ${address.status}`);
       const icon = L.divIcon({
         className: "custom-marker",
         html: `<div style="
