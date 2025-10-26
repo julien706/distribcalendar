@@ -3,7 +3,8 @@ import {
   CheckCircle2, 
   RotateCcw, 
   XCircle, 
-  Home 
+  Home,
+  PhoneOff
 } from "lucide-react";
 
 export const STATUS_CONFIG = {
@@ -36,6 +37,11 @@ export const STATUS_CONFIG = {
     label: "Inhabité",
     color: "#64748b",
     icon: Home,
+  },
+  no_answer: {
+    label: "Non répondu",
+    color: "#a855f7",
+    icon: PhoneOff,
   },
 } as const;
 

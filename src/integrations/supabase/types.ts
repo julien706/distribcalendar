@@ -157,6 +157,7 @@ export type Database = {
         | "retry_second"
         | "refused"
         | "uninhabited"
+        | "no_answer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -291,6 +292,7 @@ export const Constants = {
         "retry_second",
         "refused",
         "uninhabited",
+        "no_answer",
       ],
     },
   },

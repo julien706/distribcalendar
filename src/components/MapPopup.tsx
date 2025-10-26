@@ -81,6 +81,7 @@ export function createPopupContent(
       retry_second: "🔄",
       refused: "❌",
       uninhabited: "🏠",
+      no_answer: "📵",
     };
     
     iconSpan.textContent = iconMap[option.value] || "•";
@@ -105,7 +106,7 @@ export function createPopupContent(
     });
 
     button.addEventListener("click", async () => {
-      const newStatus = option.value as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited";
+      const newStatus = option.value as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited" | "no_answer";
       
       // Update button states
       buttonsGrid.querySelectorAll("button").forEach((btn) => {
@@ -183,6 +184,128 @@ export function createPopupContent(
 
   obsContainer.appendChild(obsTextarea);
   container.appendChild(obsContainer);
+
+  // History section
+  const historyContainer = document.createElement("div");
+  historyContainer.style.marginTop = "12px";
+  historyContainer.style.paddingTop = "12px";
+  historyContainer.style.borderTop = "1px solid #e5e7eb";
+
+  const historyHeader = document.createElement("div");
+  historyHeader.style.display = "flex";
+  historyHeader.style.justifyContent = "space-between";
+  historyHeader.style.alignItems = "center";
+  historyHeader.style.cursor = "pointer";
+  historyHeader.style.marginBottom = "8px";
+
+  const historyLabel = document.createElement("div");
+  historyLabel.style.fontSize = "12px";
+  historyLabel.style.color = "#6b7280";
+  historyLabel.style.fontWeight = "500";
+  historyLabel.textContent = "Historique des changements";
+
+  const historyToggle = document.createElement("span");
+  historyToggle.style.fontSize = "16px";
+  historyToggle.textContent = "▼";
+
+  historyHeader.appendChild(historyLabel);
+  historyHeader.appendChild(historyToggle);
+  historyContainer.appendChild(historyHeader);
+
+  const historyContent = document.createElement("div");
+  historyContent.style.display = "none";
+  historyContent.style.maxHeight = "200px";
+  historyContent.style.overflowY = "auto";
+  historyContent.style.fontSize = "11px";
+
+  // Toggle history visibility
+  let isHistoryOpen = false;
+  historyHeader.addEventListener("click", async () => {
+    isHistoryOpen = !isHistoryOpen;
+    historyToggle.textContent = isHistoryOpen ? "▲" : "▼";
+    historyContent.style.display = isHistoryOpen ? "block" : "none";
+
+    // Fetch history on first open
+    if (isHistoryOpen && historyContent.children.length === 0) {
+      const loadingDiv = document.createElement("div");
+      loadingDiv.textContent = "Chargement...";
+      loadingDiv.style.color = "#9ca3af";
+      loadingDiv.style.padding = "8px";
+      historyContent.appendChild(loadingDiv);
+
+      const { data: history, error } = await supabase
+        .from("address_status_history")
+        .select("*")
+        .eq("address_id", address.id)
+        .order("changed_at", { ascending: false });
+
+      historyContent.removeChild(loadingDiv);
+
+      if (error) {
+        const errorDiv = document.createElement("div");
+        errorDiv.textContent = "Erreur de chargement";
+        errorDiv.style.color = "#ef4444";
+        errorDiv.style.padding = "8px";
+        historyContent.appendChild(errorDiv);
+      } else if (!history || history.length === 0) {
+        const emptyDiv = document.createElement("div");
+        emptyDiv.textContent = "Aucun historique disponible";
+        emptyDiv.style.color = "#9ca3af";
+        emptyDiv.style.padding = "8px";
+        historyContent.appendChild(emptyDiv);
+      } else {
+        history.forEach((entry) => {
+          const entryDiv = document.createElement("div");
+          entryDiv.style.padding = "8px";
+          entryDiv.style.marginBottom = "6px";
+          entryDiv.style.backgroundColor = "#f9fafb";
+          entryDiv.style.borderRadius = "6px";
+          entryDiv.style.borderLeft = "3px solid #e5e7eb";
+
+          const date = new Date(entry.changed_at).toLocaleString("fr-FR", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          const oldStatusConfig = STATUS_CONFIG[entry.old_status as keyof typeof STATUS_CONFIG];
+          const newStatusConfig = STATUS_CONFIG[entry.new_status as keyof typeof STATUS_CONFIG];
+
+          const dateDiv = document.createElement("div");
+          dateDiv.style.fontWeight = "600";
+          dateDiv.style.color = "#374151";
+          dateDiv.style.marginBottom = "4px";
+          dateDiv.textContent = date;
+          entryDiv.appendChild(dateDiv);
+
+          const changeDiv = document.createElement("div");
+          changeDiv.style.color = "#6b7280";
+          changeDiv.innerHTML = `
+            <span style="color: ${oldStatusConfig?.color || "#6b7280"}">${oldStatusConfig?.label || entry.old_status}</span>
+            <span style="margin: 0 4px;">→</span>
+            <span style="color: ${newStatusConfig?.color || "#6b7280"}">${newStatusConfig?.label || entry.new_status}</span>
+          `;
+          entryDiv.appendChild(changeDiv);
+
+          if (entry.new_observations && entry.new_observations !== entry.old_observations) {
+            const obsDiv = document.createElement("div");
+            obsDiv.style.marginTop = "4px";
+            obsDiv.style.fontStyle = "italic";
+            obsDiv.style.color = "#9ca3af";
+            obsDiv.textContent = `Note: ${entry.new_observations}`;
+            entryDiv.appendChild(obsDiv);
+          }
+
+          historyContent.appendChild(entryDiv);
+        });
+      }
+    }
+  });
+
+  historyContainer.appendChild(historyContent);
+  container.appendChild(historyContainer);
 
   return container;
 }
