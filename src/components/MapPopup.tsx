@@ -19,7 +19,8 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
 
 export function createPopupContent(
   address: Address,
-  onStatusChange: (id: string, newStatus: string) => void
+  onStatusChange: (id: string, newStatus: string) => void,
+  onEdit?: (address: Address) => void
 ) {
   const container = document.createElement("div");
   container.className = "map-popup-container";
@@ -184,6 +185,41 @@ export function createPopupContent(
 
   obsContainer.appendChild(obsTextarea);
   container.appendChild(obsContainer);
+
+  // Edit button (only if onEdit callback is provided)
+  if (onEdit) {
+    const editButtonContainer = document.createElement("div");
+    editButtonContainer.style.marginTop = "12px";
+    
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.textContent = "✏️ Modifier l'adresse";
+    editButton.style.width = "100%";
+    editButton.style.padding = "8px 16px";
+    editButton.style.backgroundColor = "#3b82f6";
+    editButton.style.color = "white";
+    editButton.style.border = "none";
+    editButton.style.borderRadius = "6px";
+    editButton.style.fontSize = "13px";
+    editButton.style.fontWeight = "500";
+    editButton.style.cursor = "pointer";
+    editButton.style.transition = "background-color 0.2s";
+    
+    editButton.addEventListener("mouseenter", () => {
+      editButton.style.backgroundColor = "#2563eb";
+    });
+    
+    editButton.addEventListener("mouseleave", () => {
+      editButton.style.backgroundColor = "#3b82f6";
+    });
+    
+    editButton.addEventListener("click", () => {
+      onEdit(address);
+    });
+    
+    editButtonContainer.appendChild(editButton);
+    container.appendChild(editButtonContainer);
+  }
 
   // History section
   const historyContainer = document.createElement("div");

@@ -7,9 +7,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
-import { Navigation, Lasso, X, Trash2, MapPin, Layers } from "lucide-react";
+import { Navigation, Lasso, X, Trash2, MapPin, Layers, Move } from "lucide-react";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
 import AddAddressDialog from "./AddAddressDialog";
+import EditAddressDialog from "./EditAddressDialog";
 import StatusFilter from "./StatusFilter";
 import {
   AlertDialog,
@@ -54,6 +55,10 @@ export default function MapView() {
   const [addMode, setAddMode] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newAddressCoords, setNewAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const editMarkerRef = useRef<L.Marker | null>(null);
   
   // Map layers state
   const [currentLayer, setCurrentLayer] = useState<'osm' | 'satellite' | 'hybrid'>(() => {
@@ -414,6 +419,89 @@ export default function MapView() {
     localStorage.setItem('mapLayer', nextLayer);
   };
 
+  const handleStartMove = () => {
+    if (!editingAddress || !mapRef.current) return;
+    
+    setEditMode(true);
+    setShowEditDialog(false);
+    
+    // Remove the marker from the map temporarily
+    const marker = markersMapRef.current[editingAddress.id];
+    if (marker) {
+      marker.remove();
+    }
+    
+    // Create draggable marker
+    const statusConfig = STATUS_CONFIG[editingAddress.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
+    const icon = L.divIcon({
+      className: "custom-marker-edit",
+      html: `<div style="
+        width: 40px;
+        height: 40px;
+        background-color: ${statusConfig.color};
+        border: 3px solid white;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+      ">📍</div>`,
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+    });
+    
+    const editMarker = L.marker([editingAddress.latitude, editingAddress.longitude], {
+      icon,
+      draggable: true,
+    }).addTo(mapRef.current);
+    
+    editMarkerRef.current = editMarker;
+    
+    mapRef.current.setView([editingAddress.latitude, editingAddress.longitude], mapRef.current.getZoom());
+    
+    toast.info("Déplacez le marqueur à la nouvelle position");
+  };
+
+  const handleSaveMove = async () => {
+    if (!editingAddress || !editMarkerRef.current) return;
+    
+    const newPos = editMarkerRef.current.getLatLng();
+    
+    try {
+      const { error } = await supabase
+        .from("addresses")
+        .update({
+          latitude: newPos.lat,
+          longitude: newPos.lng,
+        })
+        .eq("id", editingAddress.id);
+      
+      if (error) throw error;
+      
+      toast.success("Position mise à jour avec succès");
+      
+      // Remove edit marker
+      editMarkerRef.current.remove();
+      editMarkerRef.current = null;
+      
+      setEditMode(false);
+      setEditingAddress(null);
+    } catch (error) {
+      console.error("Error updating position:", error);
+      toast.error("Erreur lors de la mise à jour de la position");
+    }
+  };
+
+  const handleCancelMove = () => {
+    if (editMarkerRef.current) {
+      editMarkerRef.current.remove();
+      editMarkerRef.current = null;
+    }
+    setEditMode(false);
+    setEditingAddress(null);
+  };
+
   // Fetch addresses
   useEffect(() => {
     const PAGE_SIZE = 1000;
@@ -536,6 +624,12 @@ export default function MapView() {
         );
       };
 
+      // Handle edit address
+      const handleEditAddress = (addr: Address) => {
+        setEditingAddress(addr);
+        setShowEditDialog(true);
+      };
+
       // Create marker
       const marker = L.marker([address.latitude, address.longitude], { icon })
         .addTo(mapRef.current!);
@@ -556,8 +650,8 @@ export default function MapView() {
       });
 
       // Bind popup with interactive content only when not in lasso mode
-      if (!lassoMode) {
-        const popupContent = createPopupContent(address, handleStatusChange);
+      if (!lassoMode && !editMode) {
+        const popupContent = createPopupContent(address, handleStatusChange, handleEditAddress);
         marker.bindPopup(popupContent, {
           maxWidth: 300,
           className: "custom-popup",
@@ -573,7 +667,7 @@ export default function MapView() {
     if (bounds.length > 0) {
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
-  }, [addresses, lassoMode, addMode, statusFilter, showNumbers]);
+  }, [addresses, lassoMode, addMode, statusFilter, showNumbers, editMode]);
 
   // Update marker visuals when selection changes
   useEffect(() => {
@@ -714,6 +808,39 @@ export default function MapView() {
             setNewAddressCoords(null);
           }}
         />
+      )}
+
+      {/* Edit Address Dialog */}
+      <EditAddressDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        address={editingAddress}
+        onSuccess={() => {
+          setEditingAddress(null);
+        }}
+        onMoveRequest={handleStartMove}
+      />
+
+      {/* Edit Mode Controls */}
+      {editMode && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[12000] pointer-events-auto flex gap-2 bg-white px-4 py-3 rounded-lg shadow-lg">
+          <Button
+            onClick={handleSaveMove}
+            size="sm"
+            className="gap-2"
+          >
+            <Move className="h-4 w-4" />
+            Sauvegarder la position
+          </Button>
+          <Button
+            onClick={handleCancelMove}
+            size="sm"
+            variant="outline"
+          >
+            <X className="h-4 w-4" />
+            Annuler
+          </Button>
+        </div>
       )}
     </div>
   );
