@@ -573,7 +573,7 @@ export default function MapView() {
     if (bounds.length > 0) {
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
-  }, [addresses, lassoMode, addMode, statusFilter]);
+  }, [addresses, lassoMode, addMode, statusFilter, showNumbers]);
 
   // Update marker visuals when selection changes
   useEffect(() => {
@@ -585,25 +585,35 @@ export default function MapView() {
       const color = statusConfig.color;
       const isSelected = selectedAddresses.includes(id);
       const isManuallyAdded = !addr.csv_data;
+      const textColor = getContrastingTextColor(color);
+      const streetNumber = showNumbers ? (addr.street_number || '') : '';
       
       const icon = L.divIcon({
         className: "custom-marker",
         html: `<div style="
-          width: 24px;
-          height: 24px;
+          width: 36px;
+          height: 36px;
           background-color: ${color};
-          border: 2px solid white;
-          border-radius: ${isManuallyAdded ? '2px' : '50%'};
+          border: 3px solid white;
+          border-radius: ${isManuallyAdded ? '4px' : '50%'};
           ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
           cursor: pointer;
           transition: transform 0.2s;
-        "></div>`,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 13px;
+          font-weight: 700;
+          color: ${textColor};
+          text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3);
+          line-height: 1;
+        ">${streetNumber}</div>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
       });
       marker.setIcon(icon);
     });
-  }, [selectedAddresses, addresses]);
+  }, [selectedAddresses, addresses, showNumbers]);
 
   return (
     <div className="relative w-full h-full">
