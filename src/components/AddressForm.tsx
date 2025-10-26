@@ -94,12 +94,18 @@ export default function AddressForm({
   const handleSave = async () => {
     if (!address) return;
 
+    // Validate observations length
+    if (observations && observations.length > 1000) {
+      toast.error("Les observations sont trop longues (max 1000 caractères)");
+      return;
+    }
+
     setSaving(true);
     const { error } = await supabase
       .from("addresses")
       .update({
         status,
-        observations: observations || null,
+        observations: observations?.trim() || null,
         last_visit_date: new Date().toISOString(),
       })
       .eq("id", address.id);
@@ -156,13 +162,17 @@ export default function AddressForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Observations</label>
+              <label className="text-sm font-medium">Observations (max 1000 caractères)</label>
               <Textarea
                 placeholder="Notes, commentaires..."
                 value={observations}
                 onChange={(e) => setObservations(e.target.value)}
                 rows={4}
+                maxLength={1000}
               />
+              <p className="text-xs text-muted-foreground">
+                {(observations || "").length}/1000 caractères
+              </p>
             </div>
 
             {history.length > 0 && (

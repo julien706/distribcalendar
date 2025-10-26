@@ -21,14 +21,14 @@ type Address = {
 export default function Index() {
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [activeTab, setActiveTab] = useState("map");
-  const { isAuthenticated } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate("/login");
+    if (!loading && !user) {
+      navigate("/auth");
     }
-  }, [isAuthenticated, navigate]);
+  }, [user, loading, navigate]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

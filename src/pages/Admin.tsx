@@ -32,11 +32,7 @@ import { toast } from "sonner";
 
 export default function Admin() {
   const [showImporter, setShowImporter] = useState(false);
-  const [showChangeCode, setShowChangeCode] = useState(false);
-  const [oldCode, setOldCode] = useState("");
-  const [newCode, setNewCode] = useState("");
-  const [confirmCode, setConfirmCode] = useState("");
-  const { logout, changeCode } = useAuth();
+  const { signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleDeleteAll = async () => {
@@ -49,29 +45,17 @@ export default function Admin() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/auth");
   };
 
-  const handleChangeCode = () => {
-    if (newCode !== confirmCode) {
-      toast.error("Les nouveaux codes ne correspondent pas");
-      return;
+  const sanitizeCSVField = (field: string): string => {
+    // Prevent CSV injection by escaping formulas
+    if (field && typeof field === 'string' && /^[=+\-@]/.test(field)) {
+      return `"'${field.replace(/"/g, '""')}"`;
     }
-    if (newCode.length !== 4 || !/^\d+$/.test(newCode)) {
-      toast.error("Le code doit contenir exactement 4 chiffres");
-      return;
-    }
-    if (changeCode(oldCode, newCode)) {
-      toast.success("Code modifié avec succès");
-      setShowChangeCode(false);
-      setOldCode("");
-      setNewCode("");
-      setConfirmCode("");
-    } else {
-      toast.error("Ancien code incorrect");
-    }
+    return `"${String(field || '').replace(/"/g, '""')}"`;
   };
 
   const exportToCSV = async (statusFilter?: ("done" | "pending" | "refused" | "retry_first" | "retry_second" | "uninhabited")[], withObservations?: boolean) => {
@@ -97,15 +81,15 @@ export default function Admin() {
       return;
     }
 
-    // Convert to CSV
+    // Convert to CSV with sanitization
     const headers = ["Rue", "Numéro", "Statut", "Observations", "Latitude", "Longitude", "Dernière visite"];
     const csvContent = [
       headers.join(","),
       ...data.map(row => [
-        `"${row.street_name}"`,
-        `"${row.street_number || ""}"`,
-        `"${row.status}"`,
-        `"${row.observations || ""}"`,
+        sanitizeCSVField(row.street_name),
+        sanitizeCSVField(row.street_number || ""),
+        sanitizeCSVField(row.status),
+        sanitizeCSVField(row.observations || ""),
         row.latitude,
         row.longitude,
         row.last_visit_date || ""
@@ -144,79 +128,6 @@ export default function Admin() {
       </header>
 
       <div className="container max-w-4xl mx-auto p-4 space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Key className="h-5 w-5" />
-              Code de verrouillage
-            </CardTitle>
-            <CardDescription>
-              Modifier le code PIN d'accès à l'application
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Dialog open={showChangeCode} onOpenChange={setShowChangeCode}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Key className="h-4 w-4 mr-2" />
-                  Changer le code
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Modifier le code PIN</DialogTitle>
-                  <DialogDescription>
-                    Le code doit contenir exactement 4 chiffres
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="old-code">Ancien code</Label>
-                    <Input
-                      id="old-code"
-                      type="password"
-                      maxLength={4}
-                      value={oldCode}
-                      onChange={(e) => setOldCode(e.target.value)}
-                      className="text-center text-xl tracking-widest"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="new-code">Nouveau code</Label>
-                    <Input
-                      id="new-code"
-                      type="password"
-                      maxLength={4}
-                      value={newCode}
-                      onChange={(e) => setNewCode(e.target.value)}
-                      className="text-center text-xl tracking-widest"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="confirm-code">Confirmer le nouveau code</Label>
-                    <Input
-                      id="confirm-code"
-                      type="password"
-                      maxLength={4}
-                      value={confirmCode}
-                      onChange={(e) => setConfirmCode(e.target.value)}
-                      className="text-center text-xl tracking-widest"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setShowChangeCode(false)}>
-                    Annuler
-                  </Button>
-                  <Button onClick={handleChangeCode}>
-                    Modifier
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

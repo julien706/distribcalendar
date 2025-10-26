@@ -1,60 +1,49 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-
-const DEFAULT_AUTH_CODE = "1234"; // Code PIN par défaut
-const AUTH_CODE_STORAGE_KEY = "app_auth_code";
-const AUTH_STORAGE_KEY = "app_authenticated";
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from "@/integrations/supabase/client";
 
 type AuthContextType = {
-  isAuthenticated: boolean;
-  login: (code: string) => boolean;
-  logout: () => void;
-  changeCode: (oldCode: string, newCode: string) => boolean;
+  user: User | null;
+  session: Session | null;
+  loading: boolean;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (stored === "true") {
-      setIsAuthenticated(true);
-    }
-    // Initialize code if not set
-    if (!localStorage.getItem(AUTH_CODE_STORAGE_KEY)) {
-      localStorage.setItem(AUTH_CODE_STORAGE_KEY, DEFAULT_AUTH_CODE);
-    }
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const getStoredCode = () => {
-    return localStorage.getItem(AUTH_CODE_STORAGE_KEY) || DEFAULT_AUTH_CODE;
-  };
-
-  const login = (code: string) => {
-    if (code === getStoredCode()) {
-      setIsAuthenticated(true);
-      localStorage.setItem(AUTH_STORAGE_KEY, "true");
-      return true;
-    }
-    return false;
-  };
-
-  const logout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-  };
-
-  const changeCode = (oldCode: string, newCode: string) => {
-    if (oldCode === getStoredCode()) {
-      localStorage.setItem(AUTH_CODE_STORAGE_KEY, newCode);
-      return true;
-    }
-    return false;
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout, changeCode }}>
+    <AuthContext.Provider value={{ user, session, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

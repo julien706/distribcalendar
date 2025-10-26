@@ -6,6 +6,7 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { addressSchema } from "@/lib/validationSchemas";
 
 type AddAddressDialogProps = {
   open: boolean;
@@ -40,25 +41,33 @@ export default function AddAddressDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!streetName.trim()) {
-      toast.error("Le nom de rue est requis");
+
+    // Validate inputs
+    const result = addressSchema.safeParse({
+      street_name: streetName,
+      street_number: streetNumber || undefined,
+      latitude,
+      longitude,
+      observations: observations || undefined,
+      status: "pending" as const
+    });
+
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
       return;
     }
 
     setLoading(true);
-    console.log("Submitting address:", { streetName, streetNumber, latitude, longitude });
     
     try {
-      const { data, error } = await supabase.from("addresses").insert({
-        street_name: streetName.trim(),
-        street_number: streetNumber.trim() || null,
-        latitude,
-        longitude,
-        status: "pending",
-        observations: observations.trim() || null,
-      }).select();
-
-      console.log("Insert result:", { data, error });
+      const { error } = await supabase.from("addresses").insert({
+        street_name: result.data.street_name,
+        street_number: result.data.street_number || null,
+        latitude: result.data.latitude,
+        longitude: result.data.longitude,
+        status: result.data.status,
+        observations: result.data.observations || null,
+      });
 
       if (error) throw error;
 
@@ -104,14 +113,18 @@ export default function AddAddressDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="observations">Observations</Label>
+            <Label htmlFor="observations">Observations (max 1000 caractères)</Label>
             <Textarea
               id="observations"
               value={observations}
               onChange={(e) => setObservations(e.target.value)}
               placeholder="Notes additionnelles..."
               rows={3}
+              maxLength={1000}
             />
+            <p className="text-xs text-muted-foreground">
+              {observations.length}/1000 caractères
+            </p>
           </div>
           <div className="text-xs text-muted-foreground">
             Coordonnées: {latitude.toFixed(6)}, {longitude.toFixed(6)}
