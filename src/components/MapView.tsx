@@ -1,12 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet-draw/dist/leaflet.draw.css";
+import "leaflet-draw";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
-import { Navigation } from "lucide-react";
+import { Navigation, Lasso, X } from "lucide-react";
 import { STATUS_CONFIG } from "@/lib/statusConfig";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 
 type Address = {
   id: string;
@@ -23,8 +35,13 @@ export default function MapView() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const userLocationMarkerRef = useRef<L.Marker | null>(null);
+  const drawControlRef = useRef<L.Control.Draw | null>(null);
+  const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isLocating, setIsLocating] = useState(false);
+  const [lassoMode, setLassoMode] = useState(false);
+  const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Initialize map
   useEffect(() => {
@@ -45,7 +62,15 @@ export default function MapView() {
 
     mapRef.current = map;
 
+    // Initialize draw control
+    const drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+    drawnItemsRef.current = drawnItems;
+
     return () => {
+      if (drawControlRef.current) {
+        map.removeControl(drawControlRef.current);
+      }
       map.remove();
       mapRef.current = null;
     };
@@ -109,6 +134,126 @@ export default function MapView() {
       toast.error("Géolocalisation non supportée");
       setIsLocating(false);
     }
+  };
+
+  const toggleLassoMode = () => {
+    if (!mapRef.current || !drawnItemsRef.current) return;
+
+    if (!lassoMode) {
+      // Enable lasso mode
+      const drawControl = new L.Control.Draw({
+        draw: {
+          polygon: {
+            allowIntersection: false,
+            shapeOptions: {
+              color: '#3b82f6',
+              fillOpacity: 0.2,
+            },
+          },
+          polyline: false,
+          rectangle: false,
+          circle: false,
+          marker: false,
+          circlemarker: false,
+        },
+        edit: {
+          featureGroup: drawnItemsRef.current,
+          remove: false,
+        },
+      });
+
+      mapRef.current.addControl(drawControl);
+      drawControlRef.current = drawControl;
+
+      // Handle polygon creation
+      mapRef.current.on(L.Draw.Event.CREATED, (e: any) => {
+        const layer = e.layer;
+        drawnItemsRef.current?.addLayer(layer);
+
+        // Get polygon bounds
+        const polygon = layer.getLatLngs()[0];
+
+        // Find markers inside polygon
+        const selected: string[] = [];
+        addresses.forEach((address) => {
+          const point = L.latLng(address.latitude, address.longitude);
+          if (isPointInPolygon(point, polygon)) {
+            selected.push(address.id);
+          }
+        });
+
+        setSelectedAddresses(selected);
+        if (selected.length > 0) {
+          setShowDeleteDialog(true);
+        } else {
+          toast.info("Aucune adresse sélectionnée");
+          drawnItemsRef.current?.clearLayers();
+        }
+      });
+
+      setLassoMode(true);
+      toast.info("Mode lasso activé - Dessinez un polygone");
+    } else {
+      // Disable lasso mode
+      if (drawControlRef.current) {
+        mapRef.current.removeControl(drawControlRef.current);
+        drawControlRef.current = null;
+      }
+      mapRef.current.off(L.Draw.Event.CREATED);
+      drawnItemsRef.current?.clearLayers();
+      setLassoMode(false);
+      setSelectedAddresses([]);
+      toast.info("Mode lasso désactivé");
+    }
+  };
+
+  const isPointInPolygon = (point: L.LatLng, polygon: L.LatLng[]) => {
+    let inside = false;
+    const x = point.lat;
+    const y = point.lng;
+
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].lat;
+      const yi = polygon[i].lng;
+      const xj = polygon[j].lat;
+      const yj = polygon[j].lng;
+
+      const intersect =
+        yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+      if (intersect) inside = !inside;
+    }
+
+    return inside;
+  };
+
+  const handleDeleteSelected = async () => {
+    try {
+      const { error } = await supabase
+        .from("addresses")
+        .delete()
+        .in("id", selectedAddresses);
+
+      if (error) throw error;
+
+      toast.success(`${selectedAddresses.length} adresse(s) supprimée(s)`);
+      setSelectedAddresses([]);
+      setShowDeleteDialog(false);
+      drawnItemsRef.current?.clearLayers();
+      
+      // Disable lasso mode after deletion
+      if (lassoMode) {
+        toggleLassoMode();
+      }
+    } catch (error) {
+      console.error("Error deleting addresses:", error);
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
+  const handleCancelSelection = () => {
+    setShowDeleteDialog(false);
+    setSelectedAddresses([]);
+    drawnItemsRef.current?.clearLayers();
   };
 
   // Fetch addresses
@@ -215,8 +360,20 @@ export default function MapView() {
     <div className="relative w-full h-screen">
       <div ref={mapContainerRef} className="absolute inset-0" />
       
-      {/* GPS Location Button */}
-      <div className="absolute bottom-24 right-4 z-[1000]">
+      {/* Control Buttons */}
+      <div className="absolute bottom-24 right-4 z-[1000] flex flex-col gap-2">
+        <Button
+          onClick={toggleLassoMode}
+          size="icon"
+          variant={lassoMode ? "default" : "outline"}
+          className="h-12 w-12 rounded-full shadow-lg"
+        >
+          {lassoMode ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Lasso className="h-5 w-5" />
+          )}
+        </Button>
         <Button
           onClick={handleGeolocate}
           disabled={isLocating}
@@ -226,6 +383,25 @@ export default function MapView() {
           <Navigation className={`h-5 w-5 ${isLocating ? "animate-pulse" : ""}`} />
         </Button>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer les adresses sélectionnées ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vous êtes sur le point de supprimer {selectedAddresses.length} adresse(s).
+              Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelSelection}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteSelected}>
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
