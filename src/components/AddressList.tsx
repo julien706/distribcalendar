@@ -44,15 +44,23 @@ const STATUS_VARIANTS = {
 } as const;
 
 export default function AddressList({ onSelectAddress }: { onSelectAddress: (address: Address) => void }) {
+  const PAGE_SIZE = 1000;
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited" | null>(null);
   const [streetFilter, setStreetFilter] = useState<string | null>(null);
   const [streets, setStreets] = useState<string[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
 
-  const fetchAddresses = async () => {
-    setLoading(true);
-    let query = supabase.from("addresses").select("*").order("street_name");
+  const fetchAddresses = async (reset: boolean = false) => {
+    if (reset) setLoading(true);
+
+    const currentPage = reset ? 0 : page;
+    const start = currentPage * PAGE_SIZE;
+    const end = start + PAGE_SIZE - 1;
+
+    let query = supabase.from("addresses").select("*").order("street_name").range(start, end);
 
     if (filter) {
       query = query.eq("status", filter);
@@ -67,19 +75,24 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     if (error) {
       toast.error("Erreur lors du chargement des adresses");
     } else {
-      setAddresses(data || []);
+      setAddresses((prev) => (reset ? (data || []) : [...prev, ...(data || [])]));
+      setHasMore((data?.length || 0) === PAGE_SIZE);
       
-      // Extract unique street names for filter
-      if (!streetFilter) {
-        const uniqueStreets = Array.from(new Set(data?.map(addr => addr.street_name) || [])).sort();
+      // Extract unique street names for filter on reset
+      if (reset) {
+        const uniqueStreets = Array.from(new Set((data || []).map(addr => addr.street_name))).sort();
         setStreets(uniqueStreets);
       }
     }
-    setLoading(false);
+    if (reset) setLoading(false);
   };
 
   useEffect(() => {
-    fetchAddresses();
+    // Reset pagination on filter changes
+    setPage(0);
+    setHasMore(true);
+    setAddresses([]);
+    fetchAddresses(true);
 
     const channel = supabase
       .channel("addresses-list-changes")
@@ -91,7 +104,9 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
           table: "addresses",
         },
         () => {
-          fetchAddresses();
+          setPage(0);
+          setHasMore(true);
+          fetchAddresses(true);
         }
       )
       .subscribe();
@@ -123,7 +138,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Adresses</h2>
         <div className="flex gap-2">
-          <Button size="icon" variant="outline" onClick={fetchAddresses}>
+          <Button size="icon" variant="outline" onClick={() => { setPage(0); setHasMore(true); setAddresses([]); fetchAddresses(true); }}>
             <RefreshCw className="h-4 w-4" />
           </Button>
           <AlertDialog>
@@ -267,6 +282,21 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
               )}
             </Card>
           ))}
+
+          {hasMore && (
+            <div className="pt-2 flex justify-center">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  const nextPage = page + 1;
+                  setPage(nextPage);
+                  await fetchAddresses(false);
+                }}
+              >
+                Charger plus
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
