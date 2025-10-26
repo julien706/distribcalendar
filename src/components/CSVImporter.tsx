@@ -44,7 +44,7 @@ export default function CSVImporter({
         
         let imported = 0;
         let failed = 0;
-        const batchSize = 100; // Augmenté pour plus d'efficacité
+        const batchSize = 50; // Réduit pour éviter les limites de payload
 
         toast.info(`Import démarré: ${total} adresses à traiter`);
 
@@ -60,7 +60,13 @@ export default function CSVImporter({
               latitude: parseFloat(row.lat),
               longitude: parseFloat(row.long),
               status: "pending" as const,
-              csv_data: row,
+              csv_data: {
+                commune_nom: row.commune_nom,
+                voie_nom: row.voie_nom,
+                numero: row.numero,
+                lat: row.lat,
+                long: row.long
+              }, // Stocker seulement les données essentielles
             }));
 
           if (addresses.length > 0) {
@@ -68,6 +74,7 @@ export default function CSVImporter({
 
             if (error) {
               console.error("Error importing batch:", error);
+              toast.error(`Erreur batch ${Math.floor(i/batchSize) + 1}: ${error.message}`);
               failed += batch.length;
             } else {
               imported += addresses.length;
@@ -116,7 +123,7 @@ export default function CSVImporter({
           
           let imported = 0;
           let failed = 0;
-          const batchSize = 100;
+          const batchSize = 50; // Réduit pour éviter les limites de payload
 
           toast.info(`Import démarré: ${total} adresses à traiter`);
 
@@ -132,7 +139,13 @@ export default function CSVImporter({
                 latitude: parseFloat(row.lat),
                 longitude: parseFloat(row.long),
                 status: "pending" as const,
-                csv_data: row,
+                csv_data: {
+                  commune_nom: row.commune_nom,
+                  voie_nom: row.voie_nom,
+                  numero: row.numero,
+                  lat: row.lat,
+                  long: row.long
+                }, // Stocker seulement les données essentielles
               }));
 
             if (addresses.length > 0) {
@@ -140,6 +153,7 @@ export default function CSVImporter({
 
               if (error) {
                 console.error("Error importing batch:", error);
+                toast.error(`Erreur batch ${Math.floor(i/batchSize) + 1}: ${error.message}`);
                 failed += batch.length;
               } else {
                 imported += addresses.length;
