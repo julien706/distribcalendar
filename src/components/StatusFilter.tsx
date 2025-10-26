@@ -60,7 +60,7 @@ export default function StatusFilter({ selectedStatuses, onStatusChange }: Statu
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-3" align="end">
+      <PopoverContent className="w-64 p-3 z-[12010]" align="end">
         <div className="space-y-3">
           <div className="flex items-center justify-between pb-2 border-b">
             <h4 className="font-medium text-sm">Filtrer par statut</h4>
