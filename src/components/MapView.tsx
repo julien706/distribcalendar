@@ -145,9 +145,7 @@ export default function MapView() {
     if (!mapRef.current) return;
 
     const handleMapClick = (e: L.LeafletMouseEvent) => {
-      console.log("Map clicked, addMode:", addMode);
       if (addMode) {
-        console.log("Setting new address coords:", e.latlng.lat, e.latlng.lng);
         setNewAddressCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
         setShowAddDialog(true);
       }
@@ -555,8 +553,8 @@ export default function MapView() {
         marker.closePopup();
       });
 
-      // Bind popup with interactive content only when not in lasso mode
-      if (!lassoMode) {
+      // Bind popup with interactive content only when not in lasso mode and not in add mode
+      if (!lassoMode && !addMode) {
         const popupContent = createPopupContent(address, handleStatusChange);
         marker.bindPopup(popupContent, {
           maxWidth: 300,
