@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import CSVImporter from "@/components/CSVImporter";
-import { ArrowLeft, Upload, LogOut, Trash2, Key, Download, Shield, RotateCcw } from "lucide-react";
+import ZoneManagement from "@/components/ZoneManagement";
+import { ArrowLeft, Upload, LogOut, Trash2, Key, Download, Shield, RotateCcw, Users } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -236,6 +237,25 @@ export default function Admin() {
       </header>
 
       <div className="container max-w-4xl mx-auto p-4 space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Gestion des équipes et zones
+            </CardTitle>
+            <CardDescription>
+              Organisez vos distributeurs en équipes et assignez-leur des zones
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button onClick={() => navigate("/teams")} className="w-full">
+              <Users className="h-4 w-4 mr-2" />
+              Gérer les équipes
+            </Button>
+            <ZoneManagement />
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
