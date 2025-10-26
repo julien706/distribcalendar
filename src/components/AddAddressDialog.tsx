@@ -75,7 +75,7 @@ export default function AddAddressDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] z-[12010]">
         <DialogHeader>
           <DialogTitle>Ajouter une adresse</DialogTitle>
           <DialogDescription>
