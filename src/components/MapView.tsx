@@ -8,8 +8,9 @@ import { toast } from "sonner";
 import { createPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
 import { Navigation, Lasso, X, Trash2, MapPin, Layers } from "lucide-react";
-import { STATUS_CONFIG } from "@/lib/statusConfig";
+import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
 import AddAddressDialog from "./AddAddressDialog";
+import StatusFilter from "./StatusFilter";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +42,10 @@ export default function MapView() {
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
   const markersMapRef = useRef<Record<string, L.Marker>>({});
   const [addresses, setAddresses] = useState<Address[]>([]);
+  const [statusFilter, setStatusFilter] = useState<StatusType[]>(() => {
+    // Initialize with all statuses selected
+    return Object.keys(STATUS_CONFIG) as StatusType[];
+  });
   const [isLocating, setIsLocating] = useState(false);
   const [lassoMode, setLassoMode] = useState(false);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
@@ -465,10 +470,15 @@ export default function MapView() {
     markersRef.current = [];
     markersMapRef.current = {};
 
+    // Filter addresses based on selected statuses
+    const filteredAddresses = addresses.filter((address) =>
+      statusFilter.includes(address.status as StatusType)
+    );
+
     // Add new markers
     const bounds: L.LatLngBoundsExpression = [];
     
-    addresses.forEach((address) => {
+    filteredAddresses.forEach((address) => {
       const statusConfig = STATUS_CONFIG[address.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
       const color = statusConfig.color;
       const isSelected = selectedAddresses.includes(address.id);
@@ -539,7 +549,7 @@ export default function MapView() {
     if (bounds.length > 0) {
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
-  }, [addresses, lassoMode, addMode]);
+  }, [addresses, lassoMode, addMode, statusFilter]);
 
   // Update marker visuals when selection changes
   useEffect(() => {
@@ -587,6 +597,10 @@ export default function MapView() {
             <span className="hidden sm:inline">Supprimer ({selectedAddresses.length})</span>
           </Button>
         )}
+        <StatusFilter
+          selectedStatuses={statusFilter}
+          onStatusChange={setStatusFilter}
+        />
         <Button
           onClick={toggleAddMode}
           size="icon"
