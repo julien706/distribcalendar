@@ -487,20 +487,28 @@ export default function MapView() {
       const isManuallyAdded = !address.csv_data;
       
       // Create custom icon with selection ring
+      const streetNumber = address.street_number || '';
       const icon = L.divIcon({
         className: "custom-marker",
         html: `<div style="
-          width: 24px;
-          height: 24px;
+          width: 32px;
+          height: 32px;
           background-color: ${color};
           border: 2px solid white;
           border-radius: ${isManuallyAdded ? '2px' : '50%'};
           ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
           cursor: pointer;
           transition: transform 0.2s;
-        "></div>`,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 11px;
+          font-weight: bold;
+          color: white;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        ">${streetNumber}</div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
       });
 
       // Handle status change callback
