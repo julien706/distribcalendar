@@ -7,8 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
-import { Navigation, Lasso, X, Trash2 } from "lucide-react";
+import { Navigation, Lasso, X, Trash2, MapPin } from "lucide-react";
 import { STATUS_CONFIG } from "@/lib/statusConfig";
+import AddAddressDialog from "./AddAddressDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +44,9 @@ export default function MapView() {
   const [lassoMode, setLassoMode] = useState(false);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [addMode, setAddMode] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newAddressCoords, setNewAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Initialize map
   useEffect(() => {
@@ -68,14 +72,23 @@ export default function MapView() {
     map.addLayer(drawnItems);
     drawnItemsRef.current = drawnItems;
 
+    // Handle map clicks for adding addresses
+    map.on('click', (e: L.LeafletMouseEvent) => {
+      if (addMode) {
+        setNewAddressCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
+        setShowAddDialog(true);
+      }
+    });
+
     return () => {
       if (drawControlRef.current) {
         map.removeControl(drawControlRef.current);
       }
+      map.off('click');
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [addMode]);
 
   const handleGeolocate = () => {
     if (!mapRef.current) return;
@@ -137,8 +150,26 @@ export default function MapView() {
     }
   };
 
+  const toggleAddMode = () => {
+    if (lassoMode) {
+      toast.info("Désactivez le mode lasso d'abord");
+      return;
+    }
+    setAddMode(!addMode);
+    if (!addMode) {
+      toast.info("Mode ajout activé - Cliquez sur la carte pour ajouter une adresse");
+    } else {
+      toast.info("Mode ajout désactivé");
+    }
+  };
+
   const toggleLassoMode = () => {
     if (!mapRef.current || !drawnItemsRef.current) return;
+
+    if (addMode) {
+      toast.info("Désactivez le mode ajout d'abord");
+      return;
+    }
 
     if (!lassoMode) {
       // Enable lasso mode
@@ -322,6 +353,14 @@ export default function MapView() {
   useEffect(() => {
     if (!mapRef.current || addresses.length === 0) return;
 
+    // Update cursor style based on addMode
+    const container = mapRef.current.getContainer();
+    if (addMode) {
+      container.style.cursor = "crosshair";
+    } else {
+      container.style.cursor = "";
+    }
+
     // Clear existing markers
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
@@ -394,11 +433,11 @@ export default function MapView() {
       bounds.push([address.latitude, address.longitude]);
     });
 
-    // Fit map to markers
+      // Fit map to markers
     if (bounds.length > 0) {
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
-  }, [addresses, lassoMode]);
+  }, [addresses, lassoMode, addMode]);
 
   // Update marker visuals when selection changes
   useEffect(() => {
@@ -445,6 +484,18 @@ export default function MapView() {
           </Button>
         )}
         <Button
+          onClick={toggleAddMode}
+          size="icon"
+          variant={addMode ? "default" : "outline"}
+          className="h-12 w-12 rounded-full shadow-lg"
+        >
+          {addMode ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <MapPin className="h-5 w-5" />
+          )}
+        </Button>
+        <Button
           onClick={toggleLassoMode}
           size="icon"
           variant={lassoMode ? "default" : "outline"}
@@ -484,6 +535,20 @@ export default function MapView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Address Dialog */}
+      {newAddressCoords && (
+        <AddAddressDialog
+          open={showAddDialog}
+          onOpenChange={setShowAddDialog}
+          latitude={newAddressCoords.lat}
+          longitude={newAddressCoords.lng}
+          onSuccess={() => {
+            setAddMode(false);
+            setNewAddressCoords(null);
+          }}
+        />
+      )}
     </div>
   );
 }
