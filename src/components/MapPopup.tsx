@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { STATUS_CONFIG } from "@/lib/statusConfig";
 
 type Address = {
   id: string;
@@ -10,14 +10,11 @@ type Address = {
   observations: string | null;
 };
 
-const STATUS_OPTIONS = [
-  { value: "pending", label: "En attente", color: "#94a3b8" },
-  { value: "done", label: "Fait", color: "#22c55e" },
-  { value: "retry_first", label: "À repasser 1ère", color: "#f59e0b" },
-  { value: "retry_second", label: "À repasser 2ème", color: "#f59e0b" },
-  { value: "refused", label: "Refus", color: "#ef4444" },
-  { value: "uninhabited", label: "Inhabité", color: "#64748b" },
-];
+const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
+  value,
+  label: config.label,
+  color: config.color,
+}));
 
 export function createPopupContent(
   address: Address,

@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { toast } from "sonner";
+import { STATUS_CONFIG } from "@/lib/statusConfig";
 
 type Address = {
   id: string;
@@ -28,14 +29,11 @@ type Address = {
   observations: string | null;
 };
 
-const STATUS_OPTIONS = [
-  { value: "pending", label: "En attente" },
-  { value: "done", label: "Fait" },
-  { value: "retry_first", label: "À repasser 1ère fois" },
-  { value: "retry_second", label: "À repasser 2ème fois" },
-  { value: "refused", label: "Refus" },
-  { value: "uninhabited", label: "Inhabité" },
-];
+const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
+  value,
+  label: config.label,
+  icon: config.icon,
+}));
 
 export default function AddressForm({
   address,
@@ -100,11 +98,17 @@ export default function AddressForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
+                {STATUS_OPTIONS.map((option) => {
+                  const Icon = option.icon;
+                  return (
+                    <SelectItem key={option.value} value={option.value}>
+                      <span className="flex items-center gap-2">
+                        <Icon className="h-4 w-4" />
+                        {option.label}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>

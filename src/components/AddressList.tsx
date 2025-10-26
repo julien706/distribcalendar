@@ -9,8 +9,20 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import { MapPin, RefreshCw } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "./ui/alert-dialog";
+import { MapPin, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { STATUS_CONFIG } from "@/lib/statusConfig";
 
 type Address = {
   id: string;
@@ -20,15 +32,6 @@ type Address = {
   longitude: number;
   status: string;
   observations: string | null;
-};
-
-const STATUS_LABELS = {
-  pending: "En attente",
-  done: "Fait",
-  retry_first: "À repasser 1ère fois",
-  retry_second: "À repasser 2ème fois",
-  refused: "Refus",
-  uninhabited: "Inhabité",
 };
 
 const STATUS_VARIANTS = {
@@ -103,13 +106,48 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     return acc;
   }, {} as Record<string, number>);
 
+  const handleDeleteAll = async () => {
+    const { error } = await supabase.from("addresses").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+    if (error) {
+      toast.error("Erreur lors de la suppression");
+    } else {
+      toast.success("Toutes les adresses ont été supprimées");
+      setAddresses([]);
+      setStreets([]);
+    }
+  };
+
   return (
     <div className="space-y-4 p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Adresses</h2>
-        <Button size="icon" variant="outline" onClick={fetchAddresses}>
-          <RefreshCw className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-2">
+          <Button size="icon" variant="outline" onClick={fetchAddresses}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="icon" variant="destructive">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Supprimer toutes les adresses ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Cette action est irréversible. Toutes les adresses et leur historique seront définitivement supprimés.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Supprimer tout
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -123,16 +161,21 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
             >
               Toutes ({addresses.length})
             </Button>
-            {Object.entries(STATUS_LABELS).map(([key, label]) => (
-              <Button
-                key={key}
-                size="sm"
-                variant={filter === key ? "default" : "outline"}
-                onClick={() => setFilter(key as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited")}
-              >
-                {label} ({statusCounts[key] || 0})
-              </Button>
-            ))}
+            {Object.entries(STATUS_CONFIG).map(([key, config]) => {
+              const Icon = config.icon;
+              return (
+                <Button
+                  key={key}
+                  size="sm"
+                  variant={filter === key ? "default" : "outline"}
+                  onClick={() => setFilter(key as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited")}
+                  className="gap-1"
+                >
+                  <Icon className="h-3 w-3" />
+                  {config.label} ({statusCounts[key] || 0})
+                </Button>
+              );
+            })}
           </div>
         </div>
 
@@ -199,7 +242,19 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
                     </CardDescription>
                   </div>
                   <Badge variant={STATUS_VARIANTS[address.status as keyof typeof STATUS_VARIANTS] || "secondary"}>
-                    {STATUS_LABELS[address.status as keyof typeof STATUS_LABELS]}
+                    {(() => {
+                      const config = STATUS_CONFIG[address.status as keyof typeof STATUS_CONFIG];
+                      if (config) {
+                        const Icon = config.icon;
+                        return (
+                          <span className="flex items-center gap-1">
+                            <Icon className="h-3 w-3" />
+                            {config.label}
+                          </span>
+                        );
+                      }
+                      return address.status;
+                    })()}
                   </Badge>
                 </div>
               </CardHeader>
