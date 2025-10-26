@@ -52,7 +52,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
 
   const fetchAddresses = async () => {
     setLoading(true);
-    let query = supabase.from("addresses").select("*").order("street_name");
+    let query = supabase.from("addresses").select("*").order("street_name").limit(1000);
 
     if (filter) {
       query = query.eq("status", filter);
@@ -68,6 +68,11 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
       toast.error("Erreur lors du chargement des adresses");
     } else {
       setAddresses(data || []);
+      
+      // Warn if we hit the limit
+      if (data && data.length === 1000) {
+        toast.warning("Limite de 1000 adresses atteinte. Certaines adresses ne sont pas affichées.");
+      }
       
       // Extract unique street names for filter
       if (!streetFilter) {
