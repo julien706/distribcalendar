@@ -91,6 +91,7 @@ export default function AddAddressDialog({
               onChange={(e) => setStreetName(e.target.value)}
               placeholder="Rue de la Paix"
               required
+              autoFocus
             />
           </div>
           <div className="space-y-2">

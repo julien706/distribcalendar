@@ -29,6 +29,7 @@ type Address = {
   longitude: number;
   status: string;
   observations: string | null;
+  csv_data?: any | null;
 };
 
 export default function MapView() {
@@ -387,6 +388,9 @@ export default function MapView() {
       const color = statusConfig.color;
       const isSelected = selectedAddresses.includes(address.id);
       
+      // Determine if this is a manually added address (no csv_data)
+      const isManuallyAdded = !address.csv_data;
+      
       // Create custom icon with selection ring
       const icon = L.divIcon({
         className: "custom-marker",
@@ -395,7 +399,7 @@ export default function MapView() {
           height: 24px;
           background-color: ${color};
           border: 2px solid white;
-          border-radius: 50%;
+          border-radius: ${isManuallyAdded ? '2px' : '50%'};
           ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
           cursor: pointer;
           transition: transform 0.2s;
@@ -461,6 +465,8 @@ export default function MapView() {
       const statusConfig = STATUS_CONFIG[addr.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
       const color = statusConfig.color;
       const isSelected = selectedAddresses.includes(id);
+      const isManuallyAdded = !addr.csv_data;
+      
       const icon = L.divIcon({
         className: "custom-marker",
         html: `<div style="
@@ -468,7 +474,7 @@ export default function MapView() {
           height: 24px;
           background-color: ${color};
           border: 2px solid white;
-          border-radius: 50%;
+          border-radius: ${isManuallyAdded ? '2px' : '50%'};
           ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
           cursor: pointer;
           transition: transform 0.2s;
