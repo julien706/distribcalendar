@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
-import { Navigation, Lasso, X } from "lucide-react";
+import { Navigation, Lasso, X, Trash2 } from "lucide-react";
 import { STATUS_CONFIG } from "@/lib/statusConfig";
 import {
   AlertDialog,
@@ -37,6 +37,7 @@ export default function MapView() {
   const userLocationMarkerRef = useRef<L.Marker | null>(null);
   const drawControlRef = useRef<L.Control.Draw | null>(null);
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
+  const markersMapRef = useRef<Record<string, L.Marker>>({});
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isLocating, setIsLocating] = useState(false);
   const [lassoMode, setLassoMode] = useState(false);
@@ -189,7 +190,7 @@ export default function MapView() {
         console.log("Selected addresses:", selected.length, selected);
         setSelectedAddresses(selected);
         if (selected.length > 0) {
-          setShowDeleteDialog(true);
+          toast.info(`${selected.length} adresse(s) sélectionnée(s)`);
         } else {
           toast.info("Aucune adresse sélectionnée");
           drawnItemsRef.current?.clearLayers();
@@ -310,6 +311,7 @@ export default function MapView() {
     // Clear existing markers
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
+    markersMapRef.current = {};
 
     // Add new markers
     const bounds: L.LatLngBoundsExpression = [];
@@ -317,8 +319,9 @@ export default function MapView() {
     addresses.forEach((address) => {
       const statusConfig = STATUS_CONFIG[address.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
       const color = statusConfig.color;
+      const isSelected = selectedAddresses.includes(address.id);
       
-      // Create custom icon
+      // Create custom icon with selection ring
       const icon = L.divIcon({
         className: "custom-marker",
         html: `<div style="
@@ -327,7 +330,7 @@ export default function MapView() {
           background-color: ${color};
           border: 2px solid white;
           border-radius: 50%;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
           cursor: pointer;
           transition: transform 0.2s;
         "></div>`,
@@ -344,18 +347,36 @@ export default function MapView() {
         );
       };
 
-      // Create marker with interactive popup
+      // Create marker
       const marker = L.marker([address.latitude, address.longitude], { icon })
         .addTo(mapRef.current!);
 
-      // Bind popup with interactive content
-      const popupContent = createPopupContent(address, handleStatusChange);
-      marker.bindPopup(popupContent, {
-        maxWidth: 300,
-        className: "custom-popup",
+      // Click to toggle selection in lasso mode
+      marker.on('click', (e: any) => {
+        if (!lassoMode) return;
+        try {
+          e.originalEvent?.preventDefault?.();
+          e.originalEvent?.stopPropagation?.();
+        } catch {}
+        setSelectedAddresses((prev) =>
+          prev.includes(address.id)
+            ? prev.filter((id) => id !== address.id)
+            : [...prev, address.id]
+        );
+        marker.closePopup();
       });
 
+      // Bind popup with interactive content only when not in lasso mode
+      if (!lassoMode) {
+        const popupContent = createPopupContent(address, handleStatusChange);
+        marker.bindPopup(popupContent, {
+          maxWidth: 300,
+          className: "custom-popup",
+        });
+      }
+
       markersRef.current.push(marker);
+      markersMapRef.current[address.id] = marker;
       bounds.push([address.latitude, address.longitude]);
     });
 
@@ -363,14 +384,52 @@ export default function MapView() {
     if (bounds.length > 0) {
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
-  }, [addresses]);
+  }, [addresses, lassoMode]);
+
+  // Update marker visuals when selection changes
+  useEffect(() => {
+    if (!mapRef.current) return;
+    Object.entries(markersMapRef.current).forEach(([id, marker]) => {
+      const addr = addresses.find((a) => a.id === id);
+      if (!addr) return;
+      const statusConfig = STATUS_CONFIG[addr.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
+      const color = statusConfig.color;
+      const isSelected = selectedAddresses.includes(id);
+      const icon = L.divIcon({
+        className: "custom-marker",
+        html: `<div style="
+          width: 24px;
+          height: 24px;
+          background-color: ${color};
+          border: 2px solid white;
+          border-radius: 50%;
+          ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
+          cursor: pointer;
+          transition: transform 0.2s;
+        "></div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+      marker.setIcon(icon);
+    });
+  }, [selectedAddresses, addresses]);
 
   return (
     <div className="relative w-full h-screen">
       <div ref={mapContainerRef} className="absolute inset-0" />
       
       {/* Control Buttons */}
-      <div className="absolute bottom-24 right-4 z-[1000] flex flex-col gap-2">
+      <div className="absolute bottom-24 right-4 z-[1000] flex flex-col gap-2 items-end">
+        {selectedAddresses.length > 0 && (
+          <Button
+            onClick={() => setShowDeleteDialog(true)}
+            variant="destructive"
+            className="h-12 rounded-full shadow-lg px-4 flex items-center gap-2"
+          >
+            <Trash2 className="h-5 w-5" />
+            Supprimer ({selectedAddresses.length})
+          </Button>
+        )}
         <Button
           onClick={toggleLassoMode}
           size="icon"
