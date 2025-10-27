@@ -9,7 +9,7 @@ import {
 
 export const STATUS_CONFIG = {
   pending: {
-    label: "En attente",
+    label: "Attente",
     color: "#94a3b8",
     icon: Clock,
   },
@@ -19,17 +19,17 @@ export const STATUS_CONFIG = {
     icon: CheckCircle2,
   },
   retry_first: {
-    label: "À repasser 1ère fois",
+    label: "Repasse 1",
     color: "#f59e0b",
     icon: RotateCcw,
   },
   retry_second: {
-    label: "À repasser 2ème fois",
+    label: "Repasse 2",
     color: "#f97316",
     icon: RotateCcw,
   },
   refused: {
-    label: "Refus",
+    label: "Refusé",
     color: "#ef4444",
     icon: XCircle,
   },
@@ -39,7 +39,7 @@ export const STATUS_CONFIG = {
     icon: Home,
   },
   no_answer: {
-    label: "Non répondu",
+    label: "Pas rép.",
     color: "#a855f7",
     icon: PhoneOff,
   },
