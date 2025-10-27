@@ -16,10 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { MapPin, RefreshCw } from "lucide-react";
+import { MapPin, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { STATUS_CONFIG } from "@/lib/statusConfig";
 import StatisticsCard from "./StatisticsCard";
+import { Input } from "./ui/input";
 
 type Address = {
   id: string;
@@ -49,6 +50,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
   const [streets, setStreets] = useState<string[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchStreets = async () => {
     const { data, error } = await supabase
@@ -79,6 +81,10 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
 
     if (streetFilter) {
       query = query.eq("street_name", streetFilter);
+    }
+
+    if (searchQuery) {
+      query = query.or(`street_name.ilike.%${searchQuery}%,street_number.ilike.%${searchQuery}%`);
     }
 
     const { data, error } = await query;
@@ -124,7 +130,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [filter, streetFilter]);
+  }, [filter, streetFilter, searchQuery]);
 
   const statusCounts = addresses.reduce((acc, addr) => {
     acc[addr.status] = (acc[addr.status] || 0) + 1;
@@ -143,6 +149,20 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
       <StatisticsCard totalAddresses={addresses.length} statusCounts={statusCounts} />
 
       <div className="space-y-3">
+        <div>
+          <label className="text-xs sm:text-sm font-medium mb-2 block">Rechercher une adresse</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Chercher par rue ou numéro..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
         <div>
           <label className="text-xs sm:text-sm font-medium mb-2 block">Filtrer par statut</label>
           <div className="overflow-x-auto pb-2 -mx-3 px-3">

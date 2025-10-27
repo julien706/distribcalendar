@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart3, Users, MapPin, Group } from "lucide-react";
 import { toast } from "sonner";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 interface UserStats {
   user_id: string;
@@ -181,40 +182,56 @@ export default function StatisticsView() {
                 Aucune zone trouvée
               </p>
             ) : (
-              zoneStats.map((zone) => (
-                <div key={zone.zone_id} className="border rounded-lg p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-4 h-4 rounded"
-                        style={{ backgroundColor: zone.zone_color }}
-                      />
-                      <h3 className="font-semibold">{zone.zone_name}</h3>
-                    </div>
-                    <Badge variant="secondary">
-                      {getCompletionRate(zone.done, zone.total_addresses)}%
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Total</p>
-                      <p className="font-semibold">{zone.total_addresses}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Faites</p>
-                      <p className="font-semibold text-green-600">{zone.done}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">En attente</p>
-                      <p className="font-semibold text-blue-600">{zone.pending}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Refusées</p>
-                      <p className="font-semibold text-red-600">{zone.refused}</p>
-                    </div>
-                  </div>
+              <>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={zoneStats}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="zone_name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="done" fill="#10b981" name="Faites" />
+                      <Bar dataKey="pending" fill="#3b82f6" name="En attente" />
+                      <Bar dataKey="refused" fill="#ef4444" name="Refusées" />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-              ))
+                {zoneStats.map((zone) => (
+                  <div key={zone.zone_id} className="border rounded-lg p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-4 h-4 rounded"
+                          style={{ backgroundColor: zone.zone_color }}
+                        />
+                        <h3 className="font-semibold">{zone.zone_name}</h3>
+                      </div>
+                      <Badge variant="secondary">
+                        {getCompletionRate(zone.done, zone.total_addresses)}%
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Total</p>
+                        <p className="font-semibold">{zone.total_addresses}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Faites</p>
+                        <p className="font-semibold text-green-600">{zone.done}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">En attente</p>
+                        <p className="font-semibold text-blue-600">{zone.pending}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Refusées</p>
+                        <p className="font-semibold text-red-600">{zone.refused}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
           </TabsContent>
 
@@ -224,33 +241,72 @@ export default function StatisticsView() {
                 Aucune équipe trouvée
               </p>
             ) : (
-              teamStats.map((team) => (
-                <div key={team.team_id} className="border rounded-lg p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-4 h-4 rounded"
-                        style={{ backgroundColor: team.team_color }}
-                      />
-                      <h3 className="font-semibold">{team.team_name}</h3>
-                    </div>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={teamStats.map(t => ({ name: t.team_name, value: t.total_members }))}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {teamStats.map((team, index) => (
+                            <Cell key={`cell-${index}`} fill={team.team_color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <p className="text-xs text-center text-muted-foreground mt-2">Membres par équipe</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Membres</p>
-                      <p className="font-semibold">{team.total_members}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Zones</p>
-                      <p className="font-semibold">{team.total_zones}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Adresses</p>
-                      <p className="font-semibold">{team.total_addresses}</p>
-                    </div>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={teamStats}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="team_name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="total_zones" fill="#8b5cf6" name="Zones" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <p className="text-xs text-center text-muted-foreground mt-2">Zones par équipe</p>
                   </div>
                 </div>
-              ))
+                {teamStats.map((team) => (
+                  <div key={team.team_id} className="border rounded-lg p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-4 h-4 rounded"
+                          style={{ backgroundColor: team.team_color }}
+                        />
+                        <h3 className="font-semibold">{team.team_name}</h3>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Membres</p>
+                        <p className="font-semibold">{team.total_members}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Zones</p>
+                        <p className="font-semibold">{team.total_zones}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Adresses</p>
+                        <p className="font-semibold">{team.total_addresses}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
           </TabsContent>
 
