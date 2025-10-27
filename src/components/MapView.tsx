@@ -844,13 +844,15 @@ export default function MapView() {
       mapRef.current.removeLayer(markerClusterRef.current);
     }
     
-    // Create new marker cluster group
+    // Create new marker cluster group with optimized settings
     markerClusterRef.current = L.markerClusterGroup({
       chunkedLoading: true,
       spiderfyOnMaxZoom: true,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
-      maxClusterRadius: 50,
+      maxClusterRadius: 30, // Reduced radius for earlier marker separation
+      disableClusteringAtZoom: 18, // Stop clustering at zoom level 18
+      spiderfyDistanceMultiplier: 1.5, // More space between spiderfied markers
     });
 
     // Filter addresses based on selected statuses
