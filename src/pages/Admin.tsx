@@ -265,23 +265,27 @@ export default function Admin() {
         )}
 
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
+          <TabsList className={`grid w-full mb-4 ${isAdmin ? 'grid-cols-4' : 'grid-cols-1'}`}>
             <TabsTrigger value="general">
               <Settings className="h-4 w-4 mr-2" />
               Général
             </TabsTrigger>
-            <TabsTrigger value="statistics">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Statistiques
-            </TabsTrigger>
-            <TabsTrigger value="logs">
-              <FileText className="h-4 w-4 mr-2" />
-              Logs
-            </TabsTrigger>
-            <TabsTrigger value="data">
-              <Upload className="h-4 w-4 mr-2" />
-              Données
-            </TabsTrigger>
+            {isAdmin && (
+              <>
+                <TabsTrigger value="statistics">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Statistiques
+                </TabsTrigger>
+                <TabsTrigger value="logs">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Logs
+                </TabsTrigger>
+                <TabsTrigger value="data">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Données
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           <TabsContent value="general" className="space-y-4">
@@ -438,15 +442,20 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="statistics">
-            <StatisticsView />
-          </TabsContent>
+          {isAdmin && (
+            <TabsContent value="statistics">
+              <StatisticsView />
+            </TabsContent>
+          )}
 
-          <TabsContent value="logs">
-            <LogsView />
-          </TabsContent>
+          {isAdmin && (
+            <TabsContent value="logs">
+              <LogsView />
+            </TabsContent>
+          )}
 
-          <TabsContent value="data" className="space-y-4">
+          {isAdmin && (
+            <TabsContent value="data" className="space-y-4">
             {isAdmin && (
               <Card>
                 <CardHeader>
@@ -581,7 +590,8 @@ export default function Admin() {
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
