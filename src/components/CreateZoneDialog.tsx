@@ -12,7 +12,7 @@ interface CreateZoneDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   polygon: L.LatLng[] | null;
-  addresses: Array<{ id: string; latitude: number; longitude: number }>;
+  addresses: Array<{ id: string; latitude: number; longitude: number; zone_id?: string | null }>;
   onSuccess: () => void;
 }
 
@@ -102,9 +102,9 @@ export default function CreateZoneDialog({ open, onOpenChange, polygon, addresse
 
       if (zoneError) throw zoneError;
 
-      // Find addresses inside the polygon and assign them to the zone
+      // Find addresses inside the polygon that are NOT already assigned to another zone
       const addressesInZone = addresses.filter(addr => 
-        isPointInPolygon({ lat: addr.latitude, lng: addr.longitude }, polygon)
+        !addr.zone_id && isPointInPolygon({ lat: addr.latitude, lng: addr.longitude }, polygon)
       );
 
       if (addressesInZone.length > 0) {

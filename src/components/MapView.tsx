@@ -496,6 +496,7 @@ export default function MapView() {
       const latlngs = editingZoneLayerRef.current.getLatLngs()[0] as L.LatLng[];
       const coordinates = latlngs.map(ll => [ll.lng, ll.lat]);
 
+      // Update zone boundary
       const { error } = await supabase
         .from("zones")
         .update({ boundary_coordinates: coordinates })
@@ -503,7 +504,22 @@ export default function MapView() {
 
       if (error) throw error;
 
-      toast.success("Forme de la zone mise à jour");
+      // Reassign addresses: find all addresses in the new boundary
+      const addressesInZone = addresses.filter((addr) =>
+        isPointInPolygon(L.latLng(addr.latitude, addr.longitude), latlngs)
+      );
+
+      if (addressesInZone.length > 0) {
+        const addressIds = addressesInZone.map(addr => addr.id);
+        const { error: updateError } = await supabase
+          .from("addresses")
+          .update({ zone_id: editingZone.id })
+          .in("id", addressIds);
+
+        if (updateError) throw updateError;
+      }
+
+      toast.success(`Forme de la zone et ${addressesInZone.length} adresse(s) mises à jour`);
       cancelEditingZoneShape();
     } catch (error) {
       console.error("Error updating zone shape:", error);
