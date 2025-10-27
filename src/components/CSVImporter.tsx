@@ -48,10 +48,15 @@ export default function CSVImporter({
           latitude: parseFloat(String(row[columnMapping.latitude] || "0").replace(',', '.')),
           longitude: parseFloat(String(row[columnMapping.longitude] || "0").replace(',', '.')),
           status: "pending" as const,
+          csv_data: {},
         };
         
         if (columnMapping.street_number && row[columnMapping.street_number]) {
           transformedRow.street_number = row[columnMapping.street_number];
+        }
+        
+        if (columnMapping.city && row[columnMapping.city]) {
+          transformedRow.csv_data.commune_nom = row[columnMapping.city];
         }
         
         if (columnMapping.observations && row[columnMapping.observations]) {

@@ -18,6 +18,7 @@ const REQUIRED_FIELDS = [
 
 const OPTIONAL_FIELDS = [
   { key: "street_number", label: "Numéro", required: false },
+  { key: "city", label: "Ville", required: false },
   { key: "observations", label: "Observations", required: false },
 ];
 
@@ -29,6 +30,7 @@ const PATTERNS: Record<string, string[]> = {
   street_number: ["numero", "num", "number", "street_number", "n°", "no"],
   latitude: ["lat", "latitude", "y"],
   longitude: ["long", "lon", "lng", "longitude", "x"],
+  city: ["commune_nom", "ville", "city", "commune", "municipalite"],
   observations: ["observations", "obs", "note", "notes", "remarques", "commentaire"],
 };
 

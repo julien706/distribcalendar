@@ -30,6 +30,7 @@ type Address = {
   longitude: number;
   status: string;
   observations: string | null;
+  csv_data: any;
 };
 
 const STATUS_VARIANTS = {
@@ -48,9 +49,12 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
   const [filter, setFilter] = useState<"pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited" | null>(null);
   const [streetFilter, setStreetFilter] = useState<string | null>(null);
   const [streets, setStreets] = useState<string[]>([]);
+  const [cityFilter, setCityFilter] = useState<string | null>(null);
+  const [cities, setCities] = useState<string[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [totalCount, setTotalCount] = useState(0);
 
   const fetchStreets = async () => {
     const { data, error } = await supabase
@@ -63,6 +67,55 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     } else {
       const uniqueStreets = Array.from(new Set((data || []).map(addr => addr.street_name))).sort();
       setStreets(uniqueStreets);
+    }
+  };
+
+  const fetchCities = async () => {
+    const { data, error } = await supabase
+      .from("addresses")
+      .select("csv_data")
+      .not("csv_data", "is", null);
+
+    if (error) {
+      toast.error("Erreur lors du chargement des villes");
+    } else {
+      const uniqueCities = Array.from(
+        new Set(
+          (data || [])
+            .map(addr => {
+              const csvData = addr.csv_data as any;
+              return csvData?.commune_nom;
+            })
+            .filter(Boolean)
+        )
+      ).sort();
+      setCities(uniqueCities as string[]);
+    }
+  };
+
+  const fetchTotalCount = async () => {
+    let query = supabase.from("addresses").select("*", { count: "exact", head: true });
+
+    if (filter) {
+      query = query.eq("status", filter);
+    }
+
+    if (streetFilter) {
+      query = query.eq("street_name", streetFilter);
+    }
+
+    if (cityFilter) {
+      query = query.contains("csv_data", { commune_nom: cityFilter });
+    }
+
+    if (searchQuery) {
+      query = query.or(`street_name.ilike.%${searchQuery}%,street_number.ilike.%${searchQuery}%`);
+    }
+
+    const { count, error } = await query;
+
+    if (!error && count !== null) {
+      setTotalCount(count);
     }
   };
 
@@ -83,6 +136,10 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
       query = query.eq("street_name", streetFilter);
     }
 
+    if (cityFilter) {
+      query = query.contains("csv_data", { commune_nom: cityFilter });
+    }
+
     if (searchQuery) {
       query = query.or(`street_name.ilike.%${searchQuery}%,street_number.ilike.%${searchQuery}%`);
     }
@@ -100,6 +157,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
 
   useEffect(() => {
     fetchStreets();
+    fetchCities();
   }, []);
 
   useEffect(() => {
@@ -108,6 +166,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     setHasMore(true);
     setAddresses([]);
     fetchAddresses(true);
+    fetchTotalCount();
 
     const channel = supabase
       .channel("addresses-list-changes")
@@ -123,6 +182,8 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
           setHasMore(true);
           fetchAddresses(true);
           fetchStreets();
+          fetchCities();
+          fetchTotalCount();
         }
       )
       .subscribe();
@@ -130,7 +191,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [filter, streetFilter, searchQuery]);
+  }, [filter, streetFilter, cityFilter, searchQuery]);
 
   const statusCounts = addresses.reduce((acc, addr) => {
     acc[addr.status] = (acc[addr.status] || 0) + 1;
@@ -146,7 +207,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
         </Button>
       </div>
 
-      <StatisticsCard totalAddresses={addresses.length} statusCounts={statusCounts} />
+      <StatisticsCard totalAddresses={totalCount} statusCounts={statusCounts} />
 
       <div className="space-y-3">
         <div>
@@ -213,6 +274,26 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
             </SelectContent>
           </Select>
         </div>
+
+        <div>
+          <label className="text-xs sm:text-sm font-medium mb-2 block">Filtrer par ville</label>
+          <Select
+            value={cityFilter || "all"}
+            onValueChange={(value) => setCityFilter(value === "all" ? null : value)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Sélectionner une ville" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les villes ({cities.length})</SelectItem>
+              {cities.map((city) => (
+                <SelectItem key={city} value={city}>
+                  {city}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {loading ? (
@@ -237,9 +318,16 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
                     <CardTitle className="text-sm sm:text-base truncate">
                       {address.street_number || ""} {address.street_name}
                     </CardTitle>
-                    <CardDescription className="text-xs mt-1 truncate">
-                      <MapPin className="inline h-3 w-3 mr-1" />
-                      {address.latitude.toFixed(6)}, {address.longitude.toFixed(6)}
+                    <CardDescription className="text-xs mt-1 space-y-0.5">
+                      {(address.csv_data as any)?.commune_nom && (
+                        <div className="truncate font-medium text-foreground/70">
+                          {(address.csv_data as any).commune_nom}
+                        </div>
+                      )}
+                      <div className="truncate">
+                        <MapPin className="inline h-3 w-3 mr-1" />
+                        {address.latitude.toFixed(6)}, {address.longitude.toFixed(6)}
+                      </div>
                     </CardDescription>
                   </div>
                   <Badge variant={STATUS_VARIANTS[address.status as keyof typeof STATUS_VARIANTS] || "secondary"} className="shrink-0 text-xs">
