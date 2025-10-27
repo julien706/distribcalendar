@@ -65,7 +65,12 @@ export default function CSVImporter({
         };
         
         if (columnMapping.street_number && row[columnMapping.street_number]) {
-          transformedRow.street_number = row[columnMapping.street_number];
+          let streetNumber = row[columnMapping.street_number];
+          // Add rep (bis, ter, etc.) if available
+          if (columnMapping.rep && row[columnMapping.rep]) {
+            streetNumber = `${streetNumber} ${row[columnMapping.rep]}`.trim();
+          }
+          transformedRow.street_number = streetNumber;
         }
         
         if (columnMapping.city && row[columnMapping.city]) {
@@ -202,9 +207,16 @@ export default function CSVImporter({
                 const lng = parseFloat(String(row.long).replace(',', '.'));
                 const valid = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
                 if (!valid) return null;
+                
+                // Construct street number with rep (bis, ter, etc.) if available
+                let streetNumber = row.numero || null;
+                if (streetNumber && row.rep) {
+                  streetNumber = `${streetNumber} ${row.rep}`.trim();
+                }
+                
                 return {
                   street_name: row.voie_nom || row.lieudit_complement_nom || "Rue inconnue",
-                  street_number: row.numero || null,
+                  street_number: streetNumber,
                   city: row.commune_nom || null,
                   is_even: row.numero ? parseInt(row.numero) % 2 === 0 : null,
                   latitude: lat,
@@ -300,6 +312,7 @@ export default function CSVImporter({
                     const banMapping = {
                       street_name: 'nom_voie',
                       street_number: 'numero',
+                      rep: 'rep',
                       latitude: 'lat',
                       longitude: 'lon',
                       city: 'nom_commune',

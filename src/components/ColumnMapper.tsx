@@ -18,6 +18,7 @@ const REQUIRED_FIELDS = [
 
 const OPTIONAL_FIELDS = [
   { key: "street_number", label: "Numéro", required: false },
+  { key: "rep", label: "Complément (bis, ter...)", required: false },
   { key: "city", label: "Ville", required: false },
   { key: "observations", label: "Observations", required: false },
 ];
@@ -28,6 +29,7 @@ const ALL_FIELDS = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS];
 const PATTERNS: Record<string, string[]> = {
   street_name: ["nom_voie", "voie_nom", "rue", "street", "nom_rue", "voie", "street_name", "adresse", "address"],
   street_number: ["numero", "num", "number", "street_number", "n°", "no"],
+  rep: ["rep", "repetition", "complement", "bis", "ter", "suffixe"],
   latitude: ["lat", "latitude", "y"],
   longitude: ["lon", "long", "lng", "longitude", "x"],
   city: ["nom_commune", "commune_nom", "ville", "city", "commune", "municipalite", "libelle_acheminement"],
