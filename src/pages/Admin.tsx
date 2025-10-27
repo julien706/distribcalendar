@@ -238,10 +238,10 @@ export default function Admin() {
 
       if (error) throw error;
 
-      // Group by street_name + street_number
+      // Group by city + street_name + street_number
       const grouped = new Map<string, any[]>();
       addresses?.forEach((addr) => {
-        const key = `${addr.street_name}|${addr.street_number || ""}`;
+        const key = `${addr.city || ""}|${addr.street_name}|${addr.street_number || ""}`;
         if (!grouped.has(key)) {
           grouped.set(key, []);
         }
