@@ -27,6 +27,7 @@ export default function CSVImporter({
   const [currentCount, setCurrentCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [showMapper, setShowMapper] = useState(false);
+  const [showFormatChoice, setShowFormatChoice] = useState(false);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvData, setCsvData] = useState<any[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -36,6 +37,7 @@ export default function CSVImporter({
     setProgress(0);
     setCurrentCount(0);
     setShowMapper(false);
+    setShowFormatChoice(false);
     
     const errors: string[] = [];
     const validatedData: any[] = [];
@@ -139,10 +141,10 @@ export default function CSVImporter({
           return;
         }
         
-        // Show column mapper
+        // Show format choice
         setCsvHeaders(headers);
         setCsvData(rows);
-        setShowMapper(true);
+        setShowFormatChoice(true);
       },
       error: (error) => {
         console.error("Parse error:", error);
@@ -263,7 +265,59 @@ export default function CSVImporter({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {showMapper ? (
+          {showFormatChoice ? (
+            <div className="space-y-4">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Votre fichier CSV a été chargé avec succès. Choisissez le format :
+                </AlertDescription>
+              </Alert>
+              
+              <div className="space-y-2">
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    setShowFormatChoice(false);
+                    // Utiliser le mapping BAN par défaut
+                    const banMapping = {
+                      street_name: 'voie_nom',
+                      street_number: 'numero',
+                      latitude: 'lat',
+                      longitude: 'long',
+                      city: 'commune_nom',
+                    };
+                    processImport(csvData, banMapping);
+                  }}
+                >
+                  Format BAN (Base Adresse Nationale)
+                </Button>
+                
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => {
+                    setShowFormatChoice(false);
+                    setShowMapper(true);
+                  }}
+                >
+                  Mapping manuel des colonnes
+                </Button>
+                
+                <Button
+                  className="w-full"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowFormatChoice(false);
+                    setCsvData([]);
+                    setCsvHeaders([]);
+                  }}
+                >
+                  Annuler
+                </Button>
+              </div>
+            </div>
+          ) : showMapper ? (
             <ColumnMapper
               headers={csvHeaders}
               onConfirm={(mapping) => processImport(csvData, mapping)}
