@@ -344,6 +344,45 @@ export default function StatisticsView() {
                     <p className="text-sm text-center text-muted-foreground mt-2 font-medium">Zones et adresses par équipe</p>
                   </div>
                 </div>
+                
+                <div className="h-[400px] w-full">
+                  <ChartContainer
+                    config={{
+                      done: {
+                        label: "Faites",
+                        color: "hsl(142, 76%, 36%)",
+                      },
+                      pending: {
+                        label: "En attente",
+                        color: "hsl(217, 91%, 60%)",
+                      },
+                      refused: {
+                        label: "Refusées",
+                        color: "hsl(0, 84%, 60%)",
+                      },
+                    }}
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={teamStats} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis 
+                          dataKey="team_name" 
+                          tick={{ fill: 'hsl(var(--foreground))' }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis tick={{ fill: 'hsl(var(--foreground))' }} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                        <Bar dataKey="done" fill="hsl(142, 76%, 36%)" name="Faites" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="pending" fill="hsl(217, 91%, 60%)" name="En attente" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="refused" fill="hsl(0, 84%, 60%)" name="Refusées" radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                  <p className="text-sm text-center text-muted-foreground mt-2 font-medium">Statut des adresses par équipe</p>
+                </div>
                 {teamStats.map((team) => (
                   <div key={team.team_id} className="border rounded-lg p-4 space-y-2">
                     <div className="flex items-center justify-between">
