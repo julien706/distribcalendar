@@ -59,8 +59,8 @@ export default function AddressForm({
   open: boolean;
   onClose: () => void;
 }) {
-  const [status, setStatus] = useState<"pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited">(
-    (address?.status as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited") || "pending"
+  const [status, setStatus] = useState<"pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited" | "no_answer">(
+    (address?.status as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited" | "no_answer") || "pending"
   );
   const [observations, setObservations] = useState(address?.observations || "");
   const [saving, setSaving] = useState(false);
@@ -69,7 +69,7 @@ export default function AddressForm({
 
   useEffect(() => {
     if (address && open) {
-      setStatus((address.status as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited") || "pending");
+      setStatus((address.status as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited" | "no_answer") || "pending");
       setObservations(address.observations || "");
       fetchHistory();
     }
@@ -140,7 +140,7 @@ export default function AddressForm({
               <label className="text-sm font-medium">Statut</label>
               <Select 
                 value={status} 
-                onValueChange={(value) => setStatus(value as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited")}
+                onValueChange={(value) => setStatus(value as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited" | "no_answer")}
               >
                 <SelectTrigger>
                   <SelectValue />
