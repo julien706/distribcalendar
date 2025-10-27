@@ -55,6 +55,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
   const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [totalCount, setTotalCount] = useState(0);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
 
   const fetchStreets = async () => {
     let allStreets: string[] = [];
@@ -150,6 +151,32 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     }
   };
 
+  const fetchStatusCounts = async () => {
+    const statuses = Object.keys(STATUS_CONFIG);
+    const results = await Promise.all(
+      statuses.map(async (s) => {
+        let q = supabase
+          .from("addresses")
+          .select("*", { count: "exact", head: true })
+          .eq("status", s as any);
+
+        if (streetFilter) {
+          q = q.eq("street_name", streetFilter);
+        }
+        if (cityFilter) {
+          q = q.contains("csv_data", { commune_nom: cityFilter });
+        }
+        if (searchQuery) {
+          q = q.or(`street_name.ilike.%${searchQuery}%,street_number.ilike.%${searchQuery}%`);
+        }
+
+        const { count } = await q;
+        return [s, count || 0] as [string, number];
+      })
+    );
+
+    setStatusCounts(Object.fromEntries(results));
+  };
   const fetchAddresses = async (reset: boolean = false) => {
     if (reset) setLoading(true);
 
@@ -198,6 +225,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     setAddresses([]);
     fetchAddresses(true);
     fetchTotalCount();
+    fetchStatusCounts();
 
     const channel = supabase
       .channel("addresses-list-changes")
@@ -215,6 +243,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
           fetchStreets();
           fetchCities();
           fetchTotalCount();
+          fetchStatusCounts();
         }
       )
       .subscribe();
@@ -224,10 +253,8 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     };
   }, [filter, streetFilter, cityFilter, searchQuery]);
 
-  const statusCounts = addresses.reduce((acc, addr) => {
-    acc[addr.status] = (acc[addr.status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  // Les compteurs par statut proviennent du backend (tous les résultats, pas seulement la page courante)
+  // statusCounts est géré par l'état via fetchStatusCounts
 
   return (
     <div className="space-y-3 p-3 sm:p-4">
@@ -265,7 +292,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
                 onClick={() => setFilter(null)}
                 className="h-8 text-xs whitespace-nowrap touch-manipulation"
               >
-                Toutes ({addresses.length})
+                Toutes ({totalCount})
               </Button>
               {Object.entries(STATUS_CONFIG).map(([key, config]) => {
                 const Icon = config.icon;
