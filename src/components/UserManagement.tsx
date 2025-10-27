@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Shield, Users as UsersIcon, Plus, X, CheckCircle, XCircle, Trash2, KeyRound, AlertCircle } from "lucide-react";
+import { Shield, Users as UsersIcon, Plus, X, CheckCircle, XCircle, Trash2, KeyRound, AlertCircle, Search } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +61,7 @@ export default function UserManagement() {
   const [addingTeamForUser, setAddingTeamForUser] = useState<string | null>(null);
   const [deletingUser, setDeletingUser] = useState<Profile | null>(null);
   const [resetPasswordLink, setResetPasswordLink] = useState<string | null>(null);
+  const [searchFilter, setSearchFilter] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -244,8 +246,12 @@ export default function UserManagement() {
     }
   };
 
-  const pendingUsers = users.filter(u => !u.profile.is_active);
-  const activeUsers = users.filter(u => u.profile.is_active);
+  const filteredUsers = users.filter(u => 
+    u.profile.email.toLowerCase().includes(searchFilter.toLowerCase())
+  );
+  
+  const pendingUsers = filteredUsers.filter(u => !u.profile.is_active);
+  const activeUsers = filteredUsers.filter(u => u.profile.is_active);
 
   if (loading) {
     return <div className="text-center py-8">Chargement...</div>;
@@ -264,6 +270,15 @@ export default function UserManagement() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un utilisateur par email..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="pl-10"
+            />
+          </div>
           {pendingUsers.length > 0 && (
             <div className="space-y-3">
               <Alert>

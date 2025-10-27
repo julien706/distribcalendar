@@ -161,7 +161,7 @@ export default function StatisticsView() {
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="zones" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="zones">
               <MapPin className="h-4 w-4 mr-2" />
               Zones
@@ -169,10 +169,6 @@ export default function StatisticsView() {
             <TabsTrigger value="teams">
               <Group className="h-4 w-4 mr-2" />
               Équipes
-            </TabsTrigger>
-            <TabsTrigger value="users">
-              <Users className="h-4 w-4 mr-2" />
-              Utilisateurs
             </TabsTrigger>
           </TabsList>
 
@@ -307,43 +303,6 @@ export default function StatisticsView() {
                   </div>
                 ))}
               </>
-            )}
-          </TabsContent>
-
-          <TabsContent value="users" className="space-y-4 mt-4">
-            {userStats.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Aucun utilisateur trouvé
-              </p>
-            ) : (
-              userStats.map((user) => (
-                <div key={user.user_id} className="border rounded-lg p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">{user.user_email}</h3>
-                    <Badge variant="secondary">
-                      {getCompletionRate(user.done, user.total_addresses)}%
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Total</p>
-                      <p className="font-semibold">{user.total_addresses}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Faites</p>
-                      <p className="font-semibold text-green-600">{user.done}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">En attente</p>
-                      <p className="font-semibold text-blue-600">{user.pending}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Refusées</p>
-                      <p className="font-semibold text-red-600">{user.refused}</p>
-                    </div>
-                  </div>
-                </div>
-              ))
             )}
           </TabsContent>
         </Tabs>

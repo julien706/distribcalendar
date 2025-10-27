@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MapPin, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { MapPin, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -37,6 +38,8 @@ const ZoneManagement = () => {
   const [zones, setZones] = useState<Zone[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchFilter, setSearchFilter] = useState("");
+  const [teamFilter, setTeamFilter] = useState<string>("all");
 
   useEffect(() => {
     fetchData();
@@ -110,6 +113,14 @@ const ZoneManagement = () => {
     }
   };
 
+  const filteredZones = zones.filter(zone => {
+    const matchesSearch = zone.name.toLowerCase().includes(searchFilter.toLowerCase());
+    const matchesTeam = teamFilter === "all" || 
+                        (teamFilter === "none" && !zone.team_id) ||
+                        zone.team_id === teamFilter;
+    return matchesSearch && matchesTeam;
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -123,8 +134,38 @@ const ZoneManagement = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Gestion des Zones</h2>
       </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {zones.map((zone) => (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher une zone..."
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select value={teamFilter} onValueChange={setTeamFilter}>
+          <SelectTrigger>
+            <SelectValue placeholder="Filtrer par équipe" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes les équipes</SelectItem>
+            <SelectItem value="none">Sans équipe</SelectItem>
+            {teams.map((team) => (
+              <SelectItem key={team.id} value={team.id}>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: team.color }} />
+                  {team.name}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {filteredZones.map((zone) => (
           <Card key={zone.id}>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -190,6 +231,14 @@ const ZoneManagement = () => {
           </Card>
         ))}
       </div>
+      {filteredZones.length === 0 && zones.length > 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Search className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">Aucune zone ne correspond à votre recherche</p>
+          </CardContent>
+        </Card>
+      )}
       {zones.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">

@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Users, MapPin, ArrowLeft } from "lucide-react";
+import { Plus, Users, MapPin, ArrowLeft, Search } from "lucide-react";
 import { toast } from "sonner";
 import TeamManagement from "@/components/TeamManagement";
 
@@ -22,6 +23,7 @@ const Teams = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [searchFilter, setSearchFilter] = useState("");
 
   useEffect(() => {
     fetchTeams();
@@ -76,6 +78,11 @@ const Teams = () => {
     fetchTeams();
   };
 
+  const filteredTeams = teams.filter(team =>
+    team.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
+    (team.description && team.description.toLowerCase().includes(searchFilter.toLowerCase()))
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -109,8 +116,18 @@ const Teams = () => {
         </div>
       </div>
 
+      <div className="mb-4 relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Rechercher une équipe..."
+          value={searchFilter}
+          onChange={(e) => setSearchFilter(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {teams.map((team) => (
+        {filteredTeams.map((team) => (
           <Card
             key={team.id}
             className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -143,6 +160,15 @@ const Teams = () => {
           </Card>
         ))}
       </div>
+
+      {filteredTeams.length === 0 && teams.length > 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Search className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">Aucune équipe ne correspond à votre recherche</p>
+          </CardContent>
+        </Card>
+      )}
 
       {teams.length === 0 && (
         <Card>
