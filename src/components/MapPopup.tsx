@@ -8,6 +8,7 @@ type Address = {
   street_number: string | null;
   status: string;
   observations: string | null;
+  city?: string | null;
 };
 
 const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
@@ -38,13 +39,14 @@ export function createPopupContent(
   title.textContent = `${address.street_number || ""} ${address.street_name}`;
   container.appendChild(title);
 
-  // City
-  if (address.csv_data?.commune_nom) {
+  // City (from manual entry or CSV)
+  const cityName = address.city || address.csv_data?.commune_nom;
+  if (cityName) {
     const cityDiv = document.createElement("div");
     cityDiv.style.fontSize = "12px";
     cityDiv.style.color = "#6b7280";
     cityDiv.style.marginBottom = "8px";
-    cityDiv.textContent = address.csv_data.commune_nom;
+    cityDiv.textContent = cityName;
     container.appendChild(cityDiv);
   }
 

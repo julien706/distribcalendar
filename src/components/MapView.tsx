@@ -40,6 +40,7 @@ type Address = {
   observations: string | null;
   csv_data?: any | null;
   zone_id?: string | null;
+  city?: string | null;
 };
 
 type Zone = {
@@ -85,7 +86,7 @@ export default function MapView() {
   const [newAddressCoords, setNewAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [movingAddressId, setMovingAddressId] = useState<string | null>(null);
   const [showEditManual, setShowEditManual] = useState(false);
-  const [editingManual, setEditingManual] = useState<{ id: string; street_name: string; street_number: string | null; observations: string | null } | null>(null);
+  const [editingManual, setEditingManual] = useState<{ id: string; street_name: string; street_number: string | null; city: string | null; observations: string | null } | null>(null);
   const [showRouteOptimizer, setShowRouteOptimizer] = useState(false);
   const [optimizedRoute, setOptimizedRoute] = useState<Address[]>([]);
   const routeLineRef = useRef<L.Polyline | null>(null);
@@ -1006,7 +1007,7 @@ export default function MapView() {
           e.originalEvent?.preventDefault?.();
           e.originalEvent?.stopPropagation?.();
         } catch {}
-        setEditingManual({ id: address.id, street_name: address.street_name, street_number: address.street_number, observations: address.observations || null });
+        setEditingManual({ id: address.id, street_name: address.street_name, street_number: address.street_number, city: address.city || null, observations: address.observations || null });
         setShowEditManual(true);
       };
       marker.on('contextmenu', openEdit);
@@ -1274,7 +1275,7 @@ export default function MapView() {
         address={editingManual}
         onSuccess={(u) => {
           if (!editingManual) return;
-          setAddresses((prev) => prev.map(a => a.id === editingManual.id ? { ...a, street_name: u.street_name, street_number: u.street_number, observations: u.observations } : a));
+          setAddresses((prev) => prev.map(a => a.id === editingManual.id ? { ...a, street_name: u.street_name, street_number: u.street_number, city: u.city, observations: u.observations } : a));
           setEditingManual(null);
         }}
       />

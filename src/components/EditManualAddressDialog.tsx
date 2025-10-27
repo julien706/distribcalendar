@@ -11,6 +11,7 @@ export type ManualAddress = {
   id: string;
   street_name: string;
   street_number: string | null;
+  city: string | null;
   observations: string | null;
 };
 
@@ -18,7 +19,7 @@ type EditManualAddressDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   address: ManualAddress | null;
-  onSuccess: (updated: { street_name: string; street_number: string | null; observations: string | null }) => void;
+  onSuccess: (updated: { street_name: string; street_number: string | null; city: string | null; observations: string | null }) => void;
 };
 
 export default function EditManualAddressDialog({
@@ -29,6 +30,7 @@ export default function EditManualAddressDialog({
 }: EditManualAddressDialogProps) {
   const [streetName, setStreetName] = useState("");
   const [streetNumber, setStreetNumber] = useState("");
+  const [city, setCity] = useState("");
   const [observations, setObservations] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -36,6 +38,7 @@ export default function EditManualAddressDialog({
     if (open && address) {
       setStreetName(address.street_name || "");
       setStreetNumber(address.street_number || "");
+      setCity(address.city || "");
       setObservations(address.observations || "");
       setLoading(false);
     }
@@ -57,6 +60,7 @@ export default function EditManualAddressDialog({
         .update({
           street_name: streetName.trim(),
           street_number: streetNumber.trim() || null,
+          city: city.trim() || null,
           observations: observations.trim() || null,
         })
         .eq("id", address.id);
@@ -67,6 +71,7 @@ export default function EditManualAddressDialog({
       onSuccess({
         street_name: streetName.trim(),
         street_number: streetNumber.trim() || null,
+        city: city.trim() || null,
         observations: observations.trim() || null,
       });
       onOpenChange(false);
@@ -97,6 +102,10 @@ export default function EditManualAddressDialog({
           <div className="space-y-2">
             <Label htmlFor="street_number">Numéro</Label>
             <Input id="street_number" value={streetNumber} onChange={(e) => setStreetNumber(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="city">Ville</Label>
+            <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="observations">Observations</Label>
