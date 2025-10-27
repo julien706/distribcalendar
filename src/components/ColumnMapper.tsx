@@ -26,11 +26,11 @@ const ALL_FIELDS = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS];
 
 // Auto-detection patterns
 const PATTERNS: Record<string, string[]> = {
-  street_name: ["voie_nom", "rue", "street", "nom_rue", "voie", "street_name", "adresse", "address"],
+  street_name: ["nom_voie", "voie_nom", "rue", "street", "nom_rue", "voie", "street_name", "adresse", "address"],
   street_number: ["numero", "num", "number", "street_number", "n°", "no"],
   latitude: ["lat", "latitude", "y"],
-  longitude: ["long", "lon", "lng", "longitude", "x"],
-  city: ["commune_nom", "ville", "city", "commune", "municipalite"],
+  longitude: ["lon", "long", "lng", "longitude", "x"],
+  city: ["nom_commune", "commune_nom", "ville", "city", "commune", "municipalite", "libelle_acheminement"],
   observations: ["observations", "obs", "note", "notes", "remarques", "commentaire"],
 };
 

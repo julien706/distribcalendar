@@ -143,6 +143,7 @@ export default function CSVImporter({
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      delimiter: "", // Auto-detect delimiter (virgule ou point-virgule)
       complete: async (results) => {
         const rows = results.data as any[];
         const headers = results.meta.fields || [];
@@ -290,13 +291,13 @@ export default function CSVImporter({
                   className="w-full"
                   onClick={() => {
                     setShowFormatChoice(false);
-                    // Utiliser le mapping BAN par défaut
+                    // Utiliser le mapping BAN par défaut (format officiel BAN)
                     const banMapping = {
-                      street_name: 'voie_nom',
+                      street_name: 'nom_voie',
                       street_number: 'numero',
                       latitude: 'lat',
-                      longitude: 'long',
-                      city: 'commune_nom',
+                      longitude: 'lon',
+                      city: 'nom_commune',
                     };
                     processImport(csvData, banMapping);
                   }}
