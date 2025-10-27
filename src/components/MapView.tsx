@@ -62,10 +62,20 @@ export default function MapView() {
   const markerClusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusType[]>(() => {
-    // Initialize with all statuses selected
+    const saved = localStorage.getItem('mapStatusFilter');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return Object.keys(STATUS_CONFIG) as StatusType[];
+      }
+    }
     return Object.keys(STATUS_CONFIG) as StatusType[];
   });
-  const [showNumbers, setShowNumbers] = useState(true);
+  const [showNumbers, setShowNumbers] = useState(() => {
+    const saved = localStorage.getItem('mapShowNumbers');
+    return saved !== null ? saved === 'true' : true;
+  });
   const [isLocating, setIsLocating] = useState(false);
   const [lassoMode, setLassoMode] = useState(false);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
@@ -83,7 +93,10 @@ export default function MapView() {
   
   // Zone management state
   const [zones, setZones] = useState<Zone[]>([]);
-  const [showZones, setShowZones] = useState(true);
+  const [showZones, setShowZones] = useState(() => {
+    const saved = localStorage.getItem('mapShowZones');
+    return saved !== null ? saved === 'true' : true;
+  });
   const zonesLayerRef = useRef<L.FeatureGroup | null>(null);
   const [zoneMode, setZoneMode] = useState(false);
   const [showCreateZone, setShowCreateZone] = useState(false);
@@ -222,6 +235,21 @@ export default function MapView() {
       mapRef.current = null;
     };
   }, []);
+
+  // Persist status filter to localStorage
+  useEffect(() => {
+    localStorage.setItem('mapStatusFilter', JSON.stringify(statusFilter));
+  }, [statusFilter]);
+
+  // Persist show numbers to localStorage
+  useEffect(() => {
+    localStorage.setItem('mapShowNumbers', String(showNumbers));
+  }, [showNumbers]);
+
+  // Persist show zones to localStorage
+  useEffect(() => {
+    localStorage.setItem('mapShowZones', String(showZones));
+  }, [showZones]);
 
   // Toggle double-click zoom during add mode to allow dblclick editing
   useEffect(() => {
