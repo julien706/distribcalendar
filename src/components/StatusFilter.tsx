@@ -6,6 +6,7 @@ import { Filter, X, Hash, Hexagon } from "lucide-react";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
+import { ScrollArea } from "./ui/scroll-area";
 import {
   Popover,
   PopoverContent,
@@ -65,22 +66,22 @@ export default function StatusFilter({ selectedStatuses, onStatusChange, showNum
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-3 z-[12010]" align="end">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b">
+      <PopoverContent className="w-60 p-2 z-[12010]" align="end">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between pb-1.5 border-b">
             <h4 className="font-medium text-sm">Filtrer par statut</h4>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setOpen(false)}
-              className="h-6 w-6 p-0"
+              className="h-5 w-5 p-0"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </Button>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2 py-1">
+          <div className="space-y-1.5">
+            <div className="flex items-center space-x-2 py-0.5">
               <Checkbox
                 id="all-statuses"
                 checked={allSelected}
@@ -94,42 +95,42 @@ export default function StatusFilter({ selectedStatuses, onStatusChange, showNum
               </Label>
             </div>
 
-            <div className="border-t my-2" />
+            <div className="border-t my-1" />
 
-            {allStatuses.map((status) => {
-              const config = STATUS_CONFIG[status];
-              const Icon = config.icon;
-              const isChecked = selectedStatuses.includes(status);
+            <ScrollArea className="h-[180px]">
+              <div className="space-y-0.5 pr-3">
+                {allStatuses.map((status) => {
+                  const config = STATUS_CONFIG[status];
+                  const Icon = config.icon;
+                  const isChecked = selectedStatuses.includes(status);
 
-              return (
-                <div key={status} className="flex items-center space-x-2 py-1">
-                  <Checkbox
-                    id={status}
-                    checked={isChecked}
-                    onCheckedChange={() => toggleStatus(status)}
-                  />
-                  <Label
-                    htmlFor={status}
-                    className="text-sm cursor-pointer flex-1 flex items-center gap-2"
-                  >
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: config.color }}
-                    />
-                    <Icon className="h-4 w-4" style={{ color: config.color }} />
-                    {config.label}
-                  </Label>
-                </div>
-              );
-            })}
+                  return (
+                    <div key={status} className="flex items-center space-x-2 py-0.5">
+                      <Checkbox
+                        id={status}
+                        checked={isChecked}
+                        onCheckedChange={() => toggleStatus(status)}
+                      />
+                      <Label
+                        htmlFor={status}
+                        className="text-sm cursor-pointer flex-1 flex items-center gap-1.5"
+                      >
+                        <Icon className="h-3.5 w-3.5" style={{ color: config.color }} />
+                        {config.label}
+                      </Label>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
           </div>
 
-          <div className="pt-2 border-t space-y-2">
+          <div className="pt-1.5 border-t space-y-1.5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Hash className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="show-numbers" className="text-sm cursor-pointer">
-                  Afficher les numéros
+              <div className="flex items-center gap-1.5">
+                <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                <Label htmlFor="show-numbers" className="text-xs cursor-pointer">
+                  N°
                 </Label>
               </div>
               <Switch
@@ -139,10 +140,10 @@ export default function StatusFilter({ selectedStatuses, onStatusChange, showNum
               />
             </div>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Hexagon className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="show-zones" className="text-sm cursor-pointer">
-                  Afficher les zones
+              <div className="flex items-center gap-1.5">
+                <Hexagon className="h-3.5 w-3.5 text-muted-foreground" />
+                <Label htmlFor="show-zones" className="text-xs cursor-pointer">
+                  Zones
                 </Label>
               </div>
               <Switch
@@ -153,8 +154,8 @@ export default function StatusFilter({ selectedStatuses, onStatusChange, showNum
             </div>
           </div>
 
-          <div className="pt-2 border-t text-xs text-muted-foreground">
-            {getFilterCount()} statut(s) sélectionné(s)
+          <div className="pt-1.5 border-t text-xs text-muted-foreground">
+            {getFilterCount()} statut(s)
           </div>
         </div>
       </PopoverContent>
