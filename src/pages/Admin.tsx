@@ -6,10 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CSVImporter from "@/components/CSVImporter";
 import ZoneManagement from "@/components/ZoneManagement";
 import UserManagement from "@/components/UserManagement";
-import { ArrowLeft, Upload, LogOut, Trash2, Key, Download, Shield, RotateCcw, Users, AlertTriangle } from "lucide-react";
+import StatisticsView from "@/components/StatisticsView";
+import LogsView from "@/components/LogsView";
+import { ArrowLeft, Upload, LogOut, Trash2, Key, Download, Shield, RotateCcw, Users, AlertTriangle, Settings, BarChart3, FileText } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -244,9 +247,9 @@ export default function Admin() {
         </div>
       </header>
 
-      <div className="container max-w-4xl mx-auto p-4 space-y-4">
+      <div className="container max-w-6xl mx-auto p-4">
         {userTeamIds.length === 0 && !isAdmin && (
-          <Card className="border-orange-500">
+          <Card className="border-orange-500 mb-4">
             <CardContent className="pt-6">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-orange-500 mt-0.5" />
@@ -261,292 +264,325 @@ export default function Admin() {
           </Card>
         )}
 
-        {isAdmin && <UserManagement />}
-        {isAdmin && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Gestion des équipes et zones
-              </CardTitle>
-              <CardDescription>
-                Organisez vos distributeurs en équipes et assignez-leur des zones
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button onClick={() => navigate("/teams")} className="w-full">
-                <Users className="h-4 w-4 mr-2" />
-                Gérer les équipes
-              </Button>
-              <ZoneManagement />
-            </CardContent>
-          </Card>
-        )}
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Key className="h-5 w-5" />
-              Sécurité du compte
-            </CardTitle>
-            <CardDescription>
-              Modifier votre mot de passe de connexion
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Dialog open={showChangePassword} onOpenChange={setShowChangePassword}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Key className="h-4 w-4 mr-2" />
-                  Changer le mot de passe
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Modifier le mot de passe</DialogTitle>
-                  <DialogDescription>
-                    Entrez votre nouveau mot de passe (minimum 6 caractères)
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="new-password">Nouveau mot de passe</Label>
-                    <Input
-                      id="new-password"
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="••••••••"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
-                    <Input
-                      id="confirm-password"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••••"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setShowChangePassword(false)}>
-                    Annuler
-                  </Button>
-                  <Button onClick={handleChangePassword}>
-                    Modifier
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </CardContent>
-        </Card>
-
-        {isAdmin && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Code d'invitation
-              </CardTitle>
-            <CardDescription>
-              Gérer le code requis pour les nouvelles inscriptions
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loadingInvitation ? (
-              <p className="text-sm text-muted-foreground">Chargement...</p>
-            ) : (
-              <div className="space-y-2">
-                <Label>Code actuel</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={invitationCode}
-                    readOnly
-                    className="font-mono text-lg tracking-wider"
-                  />
-                </div>
-              </div>
-            )}
-            <Dialog open={showChangeInvitation} onOpenChange={setShowChangeInvitation}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Key className="h-4 w-4 mr-2" />
-                  Modifier le code
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Modifier le code d'invitation</DialogTitle>
-                  <DialogDescription>
-                    Ce code sera requis pour toutes les nouvelles inscriptions (minimum 4 caractères)
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="new-invitation-code">Nouveau code d'invitation</Label>
-                    <Input
-                      id="new-invitation-code"
-                      type="text"
-                      value={newInvitationCode}
-                      onChange={(e) => setNewInvitationCode(e.target.value.toUpperCase())}
-                      placeholder="NOUVEAUCODE"
-                      className="font-mono tracking-wider"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => {
-                    setShowChangeInvitation(false);
-                    setNewInvitationCode("");
-                  }}>
-                    Annuler
-                  </Button>
-                  <Button onClick={handleChangeInvitationCode}>
-                    Modifier
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </CardContent>
-        </Card>
-        )}
-
-        {isAdmin && (
-          <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Download className="h-5 w-5" />
-              Exporter les données
-            </CardTitle>
-            <CardDescription>
-              Télécharger les adresses au format CSV
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button variant="outline" className="w-full justify-start" onClick={() => exportToCSV(["done"])}>
-              <Download className="h-4 w-4 mr-2" />
-              Exporter les maisons faites
-            </Button>
-            <Button variant="outline" className="w-full justify-start" onClick={() => exportToCSV(["refused"])}>
-              <Download className="h-4 w-4 mr-2" />
-              Exporter les maisons non répondues
-            </Button>
-            <Button variant="outline" className="w-full justify-start" onClick={() => exportToCSV(undefined, true)}>
-              <Download className="h-4 w-4 mr-2" />
-              Exporter avec observations
-            </Button>
-            <Button variant="outline" className="w-full justify-start" onClick={() => exportToCSV()}>
-              <Download className="h-4 w-4 mr-2" />
-              Exporter toutes les adresses
-            </Button>
-          </CardContent>
-        </Card>
-        )}
-
-        {isAdmin && (
-          <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Importer des données
-            </CardTitle>
-            <CardDescription>
-              Importer des adresses depuis un fichier CSV
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => setShowImporter(true)}>
+        <Tabs defaultValue="general" className="w-full">
+          <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsTrigger value="general">
+              <Settings className="h-4 w-4 mr-2" />
+              Général
+            </TabsTrigger>
+            <TabsTrigger value="statistics">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Statistiques
+            </TabsTrigger>
+            <TabsTrigger value="logs">
+              <FileText className="h-4 w-4 mr-2" />
+              Logs
+            </TabsTrigger>
+            <TabsTrigger value="data">
               <Upload className="h-4 w-4 mr-2" />
-              Ouvrir l'importateur
-            </Button>
-          </CardContent>
-        </Card>
-        )}
+              Données
+            </TabsTrigger>
+          </TabsList>
 
-        {isAdmin && (
-          <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <RotateCcw className="h-5 w-5" />
-              Réinitialisation des données
-            </CardTitle>
-            <CardDescription>
-              Remettre tous les statuts à "En attente" et supprimer l'historique et les commentaires (les adresses sont conservées)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50">
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Réinitialiser les statuts
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Réinitialiser tous les statuts ?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Cette action va :
-                    <ul className="list-disc list-inside mt-2 space-y-1">
-                      <li>Remettre tous les statuts à "En attente"</li>
-                      <li>Supprimer tout l'historique des changements</li>
-                      <li>Effacer tous les commentaires</li>
-                      <li>Conserver toutes les adresses</li>
-                    </ul>
-                    <p className="mt-2 font-semibold">Cette action est irréversible.</p>
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleResetStatuses} className="bg-orange-500 text-white hover:bg-orange-600">
-                    Réinitialiser
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </CardContent>
-        </Card>
-        )}
+          <TabsContent value="general" className="space-y-4">
+            {isAdmin && <UserManagement />}
+            {isAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Gestion des équipes et zones
+                  </CardTitle>
+                  <CardDescription>
+                    Organisez vos distributeurs en équipes et assignez-leur des zones
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button onClick={() => navigate("/teams")} className="w-full">
+                    <Users className="h-4 w-4 mr-2" />
+                    Gérer les équipes
+                  </Button>
+                  <ZoneManagement />
+                </CardContent>
+              </Card>
+            )}
 
-        {isAdmin && (
-          <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5" />
-              Gestion des données
-            </CardTitle>
-            <CardDescription>
-              Supprimer toutes les adresses de la base de données
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Supprimer toutes les adresses
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Supprimer toutes les adresses ?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Cette action est irréversible. Toutes les adresses et leur historique seront définitivement supprimés.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    Supprimer tout
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </CardContent>
-        </Card>
-        )}
+{isAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Code d'invitation
+                  </CardTitle>
+                  <CardDescription>
+                    Gérer le code requis pour les nouvelles inscriptions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {loadingInvitation ? (
+                    <p className="text-sm text-muted-foreground">Chargement...</p>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>Code actuel</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={invitationCode}
+                          readOnly
+                          className="font-mono text-lg tracking-wider"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <Dialog open={showChangeInvitation} onOpenChange={setShowChangeInvitation}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">
+                        <Key className="h-4 w-4 mr-2" />
+                        Modifier le code
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Modifier le code d'invitation</DialogTitle>
+                        <DialogDescription>
+                          Ce code sera requis pour toutes les nouvelles inscriptions (minimum 4 caractères)
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="new-invitation-code">Nouveau code d'invitation</Label>
+                          <Input
+                            id="new-invitation-code"
+                            type="text"
+                            value={newInvitationCode}
+                            onChange={(e) => setNewInvitationCode(e.target.value.toUpperCase())}
+                            placeholder="NOUVEAUCODE"
+                            className="font-mono tracking-wider"
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => {
+                          setShowChangeInvitation(false);
+                          setNewInvitationCode("");
+                        }}>
+                          Annuler
+                        </Button>
+                        <Button onClick={handleChangeInvitationCode}>
+                          Modifier
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  Sécurité du compte
+                </CardTitle>
+                <CardDescription>
+                  Modifier votre mot de passe de connexion
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Dialog open={showChangePassword} onOpenChange={setShowChangePassword}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Key className="h-4 w-4 mr-2" />
+                      Changer le mot de passe
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Modifier le mot de passe</DialogTitle>
+                      <DialogDescription>
+                        Entrez votre nouveau mot de passe (minimum 6 caractères)
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="new-password">Nouveau mot de passe</Label>
+                        <Input
+                          id="new-password"
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="••••••••"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
+                        <Input
+                          id="confirm-password"
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="••••••••"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowChangePassword(false)}>
+                        Annuler
+                      </Button>
+                      <Button onClick={handleChangePassword}>
+                        Modifier
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="statistics">
+            <StatisticsView />
+          </TabsContent>
+
+          <TabsContent value="logs">
+            <LogsView />
+          </TabsContent>
+
+          <TabsContent value="data" className="space-y-4">
+            {isAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Download className="h-5 w-5" />
+                    Exporter les données
+                  </CardTitle>
+                  <CardDescription>
+                    Télécharger les adresses au format CSV
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button variant="outline" className="w-full justify-start" onClick={() => exportToCSV(["done"])}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Exporter les maisons faites
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start" onClick={() => exportToCSV(["refused"])}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Exporter les maisons non répondues
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start" onClick={() => exportToCSV(undefined, true)}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Exporter avec observations
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start" onClick={() => exportToCSV()}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Exporter toutes les adresses
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {isAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="h-5 w-5" />
+                    Importer des données
+                  </CardTitle>
+                  <CardDescription>
+                    Importer des adresses depuis un fichier CSV
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button onClick={() => setShowImporter(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Ouvrir l'importateur
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {isAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <RotateCcw className="h-5 w-5" />
+                    Réinitialisation des données
+                  </CardTitle>
+                  <CardDescription>
+                    Remettre tous les statuts à "En attente" et supprimer l'historique et les commentaires (les adresses sont conservées)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50">
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        Réinitialiser les statuts
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Réinitialiser tous les statuts ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Cette action va :
+                          <ul className="list-disc list-inside mt-2 space-y-1">
+                            <li>Remettre tous les statuts à "En attente"</li>
+                            <li>Supprimer tout l'historique des changements</li>
+                            <li>Effacer tous les commentaires</li>
+                            <li>Conserver toutes les adresses</li>
+                          </ul>
+                          <p className="mt-2 font-semibold">Cette action est irréversible.</p>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleResetStatuses} className="bg-orange-500 text-white hover:bg-orange-600">
+                          Réinitialiser
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </CardContent>
+              </Card>
+            )}
+
+            {isAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Trash2 className="h-5 w-5" />
+                    Gestion des données
+                  </CardTitle>
+                  <CardDescription>
+                    Supprimer toutes les adresses de la base de données
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Supprimer toutes les adresses
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Supprimer toutes les adresses ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Cette action est irréversible. Toutes les adresses et leur historique seront définitivement supprimés.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Supprimer tout
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       <CSVImporter open={showImporter} onClose={() => setShowImporter(false)} />

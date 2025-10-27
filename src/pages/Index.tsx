@@ -40,22 +40,25 @@ export default function Index() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header mobile-optimized */}
       <header className="border-b sticky top-0 z-[11000] bg-background/95 backdrop-blur">
-        <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
-          <h1 className="text-base sm:text-xl font-bold truncate">Distribution Calendriers</h1>
-          <div className="flex gap-2">
-            <Button 
-              onClick={() => setShowQuickMode(true)} 
-              size="sm" 
-              className="h-9 px-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-            >
-              <Zap className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Distribution rapide</span>
-            </Button>
-            <Button onClick={() => navigate("/admin")} size="sm" variant="outline" className="h-9 px-3">
-              <Settings className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Admin</span>
-            </Button>
+        <div className="px-3 py-2 sm:px-4 sm:py-3">
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-base sm:text-xl font-bold truncate">Distribution Calendriers</h1>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => setShowQuickMode(true)} 
+                size="sm" 
+                className="h-9 px-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+              >
+                <Zap className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Distribution rapide</span>
+              </Button>
+              <Button onClick={() => navigate("/admin")} size="sm" variant="outline" className="h-9 px-3">
+                <Settings className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Paramètres</span>
+              </Button>
+            </div>
           </div>
+          <h2 className="text-xs sm:text-sm text-muted-foreground">Gestion distribution des calendriers</h2>
         </div>
       </header>
 
