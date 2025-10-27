@@ -58,7 +58,8 @@ export default function UserManagement() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [addingTeamForUser, setAddingTeamForUser] = useState<string | null>(null);
-  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [deletingUser, setDeletingUser] = useState<Profile | null>(null);
+  const [resetPasswordLink, setResetPasswordLink] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -68,7 +69,6 @@ export default function UserManagement() {
     try {
       setLoading(true);
       
-      // Fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("id, email, is_active")
@@ -77,21 +77,18 @@ export default function UserManagement() {
 
       if (profilesError) throw profilesError;
 
-      // Fetch all user roles
       const { data: roles, error: rolesError } = await supabase
         .from("user_roles")
         .select("*");
 
       if (rolesError) throw rolesError;
 
-      // Fetch all team members with team info
       const { data: teamMembers, error: teamMembersError } = await supabase
         .from("team_members")
         .select("id, user_id, team_id, teams(id, name, color)");
 
       if (teamMembersError) throw teamMembersError;
 
-      // Fetch all teams
       const { data: teamsData, error: teamsError } = await supabase
         .from("teams")
         .select("id, name, color")
@@ -101,7 +98,6 @@ export default function UserManagement() {
 
       setTeams(teamsData || []);
 
-      // Combine data - support multiple teams per user
       const userData: UserData[] = (profiles || []).map(profile => ({
         profile,
         role: roles?.find(r => r.user_id === profile.id) || null,
@@ -122,7 +118,6 @@ export default function UserManagement() {
       const existingRole = users.find(u => u.profile.id === userId)?.role;
 
       if (existingRole) {
-        // Delete then insert (no UPDATE policy exists)
         const { error: deleteError } = await supabase
           .from("user_roles")
           .delete()
@@ -131,7 +126,6 @@ export default function UserManagement() {
         if (deleteError) throw deleteError;
       }
 
-      // Insert the new role
       const { error: insertError } = await supabase
         .from("user_roles")
         .insert({ user_id: userId, role: newRole as any });
@@ -148,7 +142,6 @@ export default function UserManagement() {
 
   const handleAddTeam = async (userId: string, teamId: string) => {
     try {
-      // Check if user is already in this team
       const userData = users.find(u => u.profile.id === userId);
       if (userData?.teamMembers.some(tm => tm.team_id === teamId)) {
         toast.error("L'utilisateur est déjà dans cette équipe");
@@ -187,32 +180,41 @@ export default function UserManagement() {
     }
   };
 
-  const handleToggleActive = async (userId: string, currentStatus: boolean) => {
+  const handleToggleActive = async (userId: string, currentState: boolean) => {
     try {
       const { error } = await supabase
         .from("profiles")
-        .update({ is_active: !currentStatus })
+        .update({ is_active: !currentState })
         .eq("id", userId);
 
       if (error) throw error;
 
-      toast.success(currentStatus ? "Utilisateur désactivé" : "Utilisateur activé");
+      toast.success(currentState ? "Utilisateur désactivé" : "Utilisateur activé");
       fetchData();
     } catch (error: any) {
-      console.error("Error toggling active status:", error);
-      toast.error("Erreur lors de la mise à jour du statut");
+      console.error("Error toggling user active state:", error);
+      toast.error("Erreur lors de la modification du statut");
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+
     try {
-      // Delete from auth.users will cascade to profiles and other tables
-      const { error } = await supabase.auth.admin.deleteUser(userId);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Session expirée");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('admin-user-actions', {
+        body: { action: 'delete', userId: deletingUser.id }
+      });
 
       if (error) throw error;
 
       toast.success("Utilisateur supprimé");
-      setUserToDelete(null);
+      setDeletingUser(null);
       fetchData();
     } catch (error: any) {
       console.error("Error deleting user:", error);
@@ -220,18 +222,25 @@ export default function UserManagement() {
     }
   };
 
-  const handleResetPassword = async (email: string) => {
+  const handleResetPassword = async (userId: string) => {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/`,
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Session expirée");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('admin-user-actions', {
+        body: { action: 'reset_password', userId }
       });
 
       if (error) throw error;
 
-      toast.success("Email de réinitialisation envoyé");
+      setResetPasswordLink(data.resetLink);
+      toast.success("Lien de réinitialisation généré");
     } catch (error: any) {
       console.error("Error resetting password:", error);
-      toast.error("Erreur lors de l'envoi de l'email");
+      toast.error("Erreur lors de la génération du lien");
     }
   };
 
@@ -265,7 +274,7 @@ export default function UserManagement() {
               </Alert>
               
               {pendingUsers.map((userData) => (
-                <div key={userData.profile.id} className="p-4 border border-orange-500/50 rounded-lg space-y-3 bg-orange-50/50">
+                <div key={userData.profile.id} className="p-4 border border-orange-500/50 rounded-lg space-y-3 bg-orange-50/50 dark:bg-orange-950/20">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{userData.profile.email}</p>
@@ -285,7 +294,7 @@ export default function UserManagement() {
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() => setUserToDelete(userData.profile.id)}
+                        onClick={() => setDeletingUser(userData.profile)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -301,163 +310,184 @@ export default function UserManagement() {
               <h3 className="text-sm font-medium text-muted-foreground">Utilisateurs actifs</h3>
             )}
             {activeUsers.map((userData) => (
-            <div key={userData.profile.id} className="p-4 border rounded-lg space-y-3">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium truncate">{userData.profile.email}</p>
-                    <Badge variant="outline" className="border-green-500">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Actif
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {userData.role && (
-                      <Badge variant={userData.role.role === "admin" ? "default" : "secondary"}>
-                        <Shield className="h-3 w-3 mr-1" />
-                        {userData.role.role === "admin" ? "Admin" : "Utilisateur"}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Select
-                    value={userData.role?.role || "user"}
-                    onValueChange={(value) => handleRoleChange(userData.profile.id, value as "admin" | "user")}
-                  >
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">Utilisateur</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleToggleActive(userData.profile.id, userData.profile.is_active)}
-                      title="Désactiver l'utilisateur"
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleResetPassword(userData.profile.email)}
-                      title="Réinitialiser le mot de passe"
-                    >
-                      <KeyRound className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => setUserToDelete(userData.profile.id)}
-                      title="Supprimer l'utilisateur"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Display all teams for this user */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-muted-foreground">Équipes :</p>
-                  {addingTeamForUser === userData.profile.id ? (
+              <div key={userData.profile.id} className="p-4 border rounded-lg space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex items-center gap-2">
-                      <Select onValueChange={(value) => handleAddTeam(userData.profile.id, value)}>
-                        <SelectTrigger className="w-40">
-                          <SelectValue placeholder="Sélectionner..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {teams
-                            .filter(team => !userData.teamMembers.some(tm => tm.team_id === team.id))
-                            .map((team) => (
-                              <SelectItem key={team.id} value={team.id}>
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className="w-3 h-3 rounded-full"
-                                    style={{ backgroundColor: team.color }}
-                                  />
-                                  {team.name}
-                                </div>
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
+                      <p className="text-sm font-medium truncate">{userData.profile.email}</p>
+                      <Badge variant="outline" className="border-green-500">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Actif
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {userData.role && (
+                        <Badge variant={userData.role.role === "admin" ? "default" : "secondary"}>
+                          <Shield className="h-3 w-3 mr-1" />
+                          {userData.role.role === "admin" ? "Admin" : "Utilisateur"}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Select
+                      value={userData.role?.role || "user"}
+                      onValueChange={(value) => handleRoleChange(userData.profile.id, value as "admin" | "user")}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">Utilisateur</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="flex gap-1">
                       <Button
                         size="sm"
-                        variant="ghost"
-                        onClick={() => setAddingTeamForUser(null)}
+                        variant="outline"
+                        onClick={() => handleToggleActive(userData.profile.id, userData.profile.is_active)}
+                        title="Désactiver l'utilisateur"
                       >
-                        <X className="h-4 w-4" />
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleResetPassword(userData.profile.id)}
+                        title="Réinitialiser le mot de passe"
+                      >
+                        <KeyRound className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setDeletingUser(userData.profile)}
+                        title="Supprimer l'utilisateur"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setAddingTeamForUser(userData.profile.id)}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Ajouter une équipe
-                    </Button>
-                  )}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {userData.teamMembers.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic">Aucune équipe</p>
-                  ) : (
-                    userData.teamMembers.map((tm) => (
-                      <Badge
-                        key={tm.id}
-                        variant="outline"
-                        style={{ borderColor: tm.teams.color }}
-                        className="flex items-center gap-1"
-                      >
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: tm.teams.color }}
-                        />
-                        {tm.teams.name}
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-muted-foreground">Équipes :</p>
+                    {addingTeamForUser === userData.profile.id ? (
+                      <div className="flex items-center gap-2">
+                        <Select onValueChange={(value) => handleAddTeam(userData.profile.id, value)}>
+                          <SelectTrigger className="w-40">
+                            <SelectValue placeholder="Sélectionner..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {teams
+                              .filter(team => !userData.teamMembers.some(tm => tm.team_id === team.id))
+                              .map((team) => (
+                                <SelectItem key={team.id} value={team.id}>
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className="w-3 h-3 rounded-full"
+                                      style={{ backgroundColor: team.color }}
+                                    />
+                                    {team.name}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-4 w-4 p-0 ml-1 hover:bg-transparent"
-                          onClick={() => handleRemoveTeam(tm.id)}
+                          onClick={() => setAddingTeamForUser(null)}
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-4 w-4" />
                         </Button>
-                      </Badge>
-                    ))
-                  )}
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setAddingTeamForUser(userData.profile.id)}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Ajouter une équipe
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {userData.teamMembers.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">Aucune équipe</p>
+                    ) : (
+                      userData.teamMembers.map((tm) => (
+                        <Badge
+                          key={tm.id}
+                          variant="outline"
+                          style={{ borderColor: tm.teams.color }}
+                          className="flex items-center gap-1"
+                        >
+                          <div
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: tm.teams.color }}
+                          />
+                          {tm.teams.name}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-4 w-4 p-0 ml-1 hover:bg-transparent"
+                            onClick={() => handleRemoveTeam(tm.id)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      <AlertDialog open={userToDelete !== null} onOpenChange={() => setUserToDelete(null)}>
+      <AlertDialog open={!!deletingUser} onOpenChange={() => setDeletingUser(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.
-              Toutes les données associées (rôles, affectations d'équipe) seront également supprimées.
+              Êtes-vous sûr de vouloir supprimer l'utilisateur <strong>{deletingUser?.email}</strong> ?
+              Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => userToDelete && handleDeleteUser(userToDelete)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!resetPasswordLink} onOpenChange={() => setResetPasswordLink(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Lien de réinitialisation généré</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>Copiez ce lien et envoyez-le à l'utilisateur :</p>
+              <div className="p-2 bg-muted rounded text-xs break-all font-mono">
+                {resetPasswordLink}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction 
+              onClick={() => {
+                navigator.clipboard.writeText(resetPasswordLink || '');
+                toast.success("Lien copié dans le presse-papiers");
+                setResetPasswordLink(null);
+              }}
+            >
+              Copier et fermer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
