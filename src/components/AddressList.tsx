@@ -57,40 +57,71 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
   const [totalCount, setTotalCount] = useState(0);
 
   const fetchStreets = async () => {
-    const { data, error } = await supabase
-      .from("addresses")
-      .select("street_name")
-      .order("street_name");
+    let allStreets: string[] = [];
+    let start = 0;
+    const batchSize = 1000;
+    let hasMore = true;
 
-    if (error) {
-      toast.error("Erreur lors du chargement des rues");
-    } else {
-      const uniqueStreets = Array.from(new Set((data || []).map(addr => addr.street_name))).sort();
-      setStreets(uniqueStreets);
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("addresses")
+        .select("street_name")
+        .order("street_name")
+        .range(start, start + batchSize - 1);
+
+      if (error) {
+        toast.error("Erreur lors du chargement des rues");
+        break;
+      }
+
+      if (data && data.length > 0) {
+        allStreets = [...allStreets, ...data.map(addr => addr.street_name)];
+        start += batchSize;
+        hasMore = data.length === batchSize;
+      } else {
+        hasMore = false;
+      }
     }
+
+    const uniqueStreets = Array.from(new Set(allStreets)).sort();
+    setStreets(uniqueStreets);
   };
 
   const fetchCities = async () => {
-    const { data, error } = await supabase
-      .from("addresses")
-      .select("csv_data")
-      .not("csv_data", "is", null);
+    let allCities: string[] = [];
+    let start = 0;
+    const batchSize = 1000;
+    let hasMore = true;
 
-    if (error) {
-      toast.error("Erreur lors du chargement des villes");
-    } else {
-      const uniqueCities = Array.from(
-        new Set(
-          (data || [])
-            .map(addr => {
-              const csvData = addr.csv_data as any;
-              return csvData?.commune_nom;
-            })
-            .filter(Boolean)
-        )
-      ).sort();
-      setCities(uniqueCities as string[]);
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("addresses")
+        .select("csv_data")
+        .not("csv_data", "is", null)
+        .range(start, start + batchSize - 1);
+
+      if (error) {
+        toast.error("Erreur lors du chargement des villes");
+        break;
+      }
+
+      if (data && data.length > 0) {
+        const cities = data
+          .map(addr => {
+            const csvData = addr.csv_data as any;
+            return csvData?.commune_nom;
+          })
+          .filter(Boolean);
+        allCities = [...allCities, ...cities];
+        start += batchSize;
+        hasMore = data.length === batchSize;
+      } else {
+        hasMore = false;
+      }
     }
+
+    const uniqueCities = Array.from(new Set(allCities)).sort();
+    setCities(uniqueCities as string[]);
   };
 
   const fetchTotalCount = async () => {
