@@ -25,15 +25,15 @@ export function createPopupContent(
 ) {
   const container = document.createElement("div");
   container.className = "map-popup-container";
-  container.style.padding = "16px";
-  container.style.minWidth = "280px";
-  container.style.maxWidth = "320px";
+  container.style.padding = "12px";
+  container.style.minWidth = "240px";
+  container.style.maxWidth = "260px";
 
   // Title
   const title = document.createElement("strong");
-  title.style.fontSize = "16px";
+  title.style.fontSize = "14px";
   title.style.display = "block";
-  title.style.marginBottom = "4px";
+  title.style.marginBottom = "2px";
   title.style.fontWeight = "600";
   title.textContent = `${address.street_number || ""} ${address.street_name}`;
   container.appendChild(title);
@@ -41,17 +41,17 @@ export function createPopupContent(
   // City
   if (address.csv_data?.commune_nom) {
     const cityDiv = document.createElement("div");
-    cityDiv.style.fontSize = "13px";
+    cityDiv.style.fontSize = "12px";
     cityDiv.style.color = "#6b7280";
-    cityDiv.style.marginBottom = "12px";
+    cityDiv.style.marginBottom = "8px";
     cityDiv.textContent = address.csv_data.commune_nom;
     container.appendChild(cityDiv);
   }
 
   // Status label
   const statusLabel = document.createElement("div");
-  statusLabel.style.fontSize = "12px";
-  statusLabel.style.marginBottom = "8px";
+  statusLabel.style.fontSize = "11px";
+  statusLabel.style.marginBottom = "6px";
   statusLabel.style.color = "#6b7280";
   statusLabel.style.fontWeight = "500";
   statusLabel.textContent = "Changer le statut:";
@@ -60,9 +60,9 @@ export function createPopupContent(
   // Status buttons grid
   const buttonsGrid = document.createElement("div");
   buttonsGrid.style.display = "grid";
-  buttonsGrid.style.gridTemplateColumns = "repeat(2, 1fr)";
-  buttonsGrid.style.gap = "8px";
-  buttonsGrid.style.marginBottom = "12px";
+  buttonsGrid.style.gridTemplateColumns = "repeat(3, 1fr)";
+  buttonsGrid.style.gap = "6px";
+  buttonsGrid.style.marginBottom = "8px";
 
   STATUS_OPTIONS.forEach((option) => {
     const button = document.createElement("button");
@@ -70,20 +70,20 @@ export function createPopupContent(
     button.style.display = "flex";
     button.style.alignItems = "center";
     button.style.justifyContent = "center";
-    button.style.gap = "6px";
-    button.style.padding = "8px 12px";
-    button.style.borderRadius = "8px";
+    button.style.gap = "4px";
+    button.style.padding = "6px 8px";
+    button.style.borderRadius = "6px";
     button.style.border = address.status === option.value ? `2px solid ${option.color}` : "2px solid transparent";
     button.style.backgroundColor = address.status === option.value ? `${option.color}15` : "#f9fafb";
     button.style.color = option.color;
-    button.style.fontSize = "12px";
+    button.style.fontSize = "11px";
     button.style.fontWeight = "500";
     button.style.cursor = "pointer";
     button.style.transition = "all 0.2s";
     
     // Create icon using Unicode or emoji representation
     const iconSpan = document.createElement("span");
-    iconSpan.style.fontSize = "14px";
+    iconSpan.style.fontSize = "12px";
     
     // Map icon names to Unicode/emoji
     const iconMap: Record<string, string> = {
@@ -149,19 +149,37 @@ export function createPopupContent(
 
   container.appendChild(buttonsGrid);
 
-  // Observations section
+  // Observations section (collapsible)
   const obsContainer = document.createElement("div");
-  obsContainer.style.marginTop = "12px";
-  obsContainer.style.paddingTop = "12px";
+  obsContainer.style.marginTop = "8px";
+  obsContainer.style.paddingTop = "8px";
   obsContainer.style.borderTop = "1px solid #e5e7eb";
 
+  const obsHeader = document.createElement("div");
+  obsHeader.style.display = "flex";
+  obsHeader.style.justifyContent = "space-between";
+  obsHeader.style.alignItems = "center";
+  obsHeader.style.cursor = "pointer";
+  obsHeader.style.marginBottom = "6px";
+
   const obsLabel = document.createElement("div");
-  obsLabel.style.fontSize = "12px";
+  obsLabel.style.fontSize = "11px";
   obsLabel.style.color = "#6b7280";
   obsLabel.style.fontWeight = "500";
-  obsLabel.style.marginBottom = "6px";
-  obsLabel.textContent = "Observations:";
-  obsContainer.appendChild(obsLabel);
+  const hasBadge = address.observations ? " 🔖" : "";
+  obsLabel.textContent = `Observations${hasBadge}`;
+
+  const obsToggle = document.createElement("span");
+  obsToggle.style.fontSize = "14px";
+  obsToggle.textContent = "▼";
+
+  obsHeader.appendChild(obsLabel);
+  obsHeader.appendChild(obsToggle);
+  obsContainer.appendChild(obsHeader);
+
+  const obsContent = document.createElement("div");
+  obsContent.style.display = "none";
+  obsContent.style.marginTop = "6px";
 
   const obsTextarea = document.createElement("textarea");
   obsTextarea.style.width = "100%";
@@ -171,7 +189,7 @@ export function createPopupContent(
   obsTextarea.style.fontSize = "12px";
   obsTextarea.style.fontFamily = "inherit";
   obsTextarea.style.resize = "vertical";
-  obsTextarea.style.minHeight = "60px";
+  obsTextarea.style.minHeight = "50px";
   obsTextarea.placeholder = "Ajouter des observations...";
   obsTextarea.value = address.observations || "";
 
@@ -194,13 +212,23 @@ export function createPopupContent(
     }, 1000);
   });
 
-  obsContainer.appendChild(obsTextarea);
+  obsContent.appendChild(obsTextarea);
+  obsContainer.appendChild(obsContent);
+
+  // Toggle observations visibility
+  let isObsOpen = false;
+  obsHeader.addEventListener("click", () => {
+    isObsOpen = !isObsOpen;
+    obsToggle.textContent = isObsOpen ? "▲" : "▼";
+    obsContent.style.display = isObsOpen ? "block" : "none";
+  });
+
   container.appendChild(obsContainer);
 
   // Navigation button
   const navContainer = document.createElement("div");
-  navContainer.style.marginTop = "12px";
-  navContainer.style.paddingTop = "12px";
+  navContainer.style.marginTop = "8px";
+  navContainer.style.paddingTop = "8px";
   navContainer.style.borderTop = "1px solid #e5e7eb";
 
   const navButton = document.createElement("a");
@@ -210,18 +238,18 @@ export function createPopupContent(
   navButton.style.display = "flex";
   navButton.style.alignItems = "center";
   navButton.style.justifyContent = "center";
-  navButton.style.gap = "8px";
+  navButton.style.gap = "6px";
   navButton.style.width = "100%";
-  navButton.style.padding = "10px 16px";
+  navButton.style.padding = "8px 12px";
   navButton.style.backgroundColor = "#3b82f6";
   navButton.style.color = "white";
   navButton.style.borderRadius = "6px";
   navButton.style.textDecoration = "none";
-  navButton.style.fontSize = "14px";
+  navButton.style.fontSize = "13px";
   navButton.style.fontWeight = "500";
   navButton.style.cursor = "pointer";
   navButton.style.transition = "background-color 0.2s";
-  navButton.textContent = "📍 Naviguer vers";
+  navButton.textContent = "📍 Naviguer";
 
   navButton.addEventListener("mouseenter", () => {
     navButton.style.backgroundColor = "#2563eb";
@@ -236,8 +264,8 @@ export function createPopupContent(
 
   // History section
   const historyContainer = document.createElement("div");
-  historyContainer.style.marginTop = "12px";
-  historyContainer.style.paddingTop = "12px";
+  historyContainer.style.marginTop = "8px";
+  historyContainer.style.paddingTop = "8px";
   historyContainer.style.borderTop = "1px solid #e5e7eb";
 
   const historyHeader = document.createElement("div");
@@ -245,13 +273,13 @@ export function createPopupContent(
   historyHeader.style.justifyContent = "space-between";
   historyHeader.style.alignItems = "center";
   historyHeader.style.cursor = "pointer";
-  historyHeader.style.marginBottom = "8px";
+  historyHeader.style.marginBottom = "6px";
 
   const historyLabel = document.createElement("div");
-  historyLabel.style.fontSize = "12px";
+  historyLabel.style.fontSize = "11px";
   historyLabel.style.color = "#6b7280";
   historyLabel.style.fontWeight = "500";
-  historyLabel.textContent = "Historique des changements";
+  historyLabel.textContent = "Historique";
 
   const historyToggle = document.createElement("span");
   historyToggle.style.fontSize = "16px";
