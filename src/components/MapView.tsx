@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
@@ -850,6 +850,11 @@ export default function MapView() {
     });
   }, [zones, showZones]);
 
+  // Memoize filtered addresses to avoid recalculation
+  const filteredAddresses = useMemo(() => {
+    return addresses.filter((addr) => statusFilter.includes(addr.status as StatusType));
+  }, [addresses, statusFilter]);
+
   // Update markers when addresses change
   useEffect(() => {
     if (!mapRef.current || addresses.length === 0) return;
@@ -875,18 +880,17 @@ export default function MapView() {
     // Create new marker cluster group with optimized settings
     markerClusterRef.current = L.markerClusterGroup({
       chunkedLoading: true,
+      chunkInterval: 100,
+      chunkDelay: 50,
       spiderfyOnMaxZoom: true,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
-      maxClusterRadius: 30, // Reduced radius for earlier marker separation
-      disableClusteringAtZoom: 18, // Stop clustering at zoom level 18
-      spiderfyDistanceMultiplier: 1.5, // More space between spiderfied markers
+      maxClusterRadius: 120,
+      disableClusteringAtZoom: 18,
+      spiderfyDistanceMultiplier: 1.5,
+      animate: true,
+      animateAddingMarkers: false,
     });
-
-    // Filter addresses based on selected statuses
-    const filteredAddresses = addresses.filter((address) =>
-      statusFilter.includes(address.status as StatusType)
-    );
 
     // Add new markers
     const bounds: L.LatLngBoundsExpression = [];
@@ -1029,7 +1033,7 @@ export default function MapView() {
     if (bounds.length > 0) {
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
-  }, [addresses, lassoMode, addMode, statusFilter, showNumbers]);
+  }, [filteredAddresses, lassoMode, addMode, showNumbers]);
 
   // Update marker visuals when selection changes
   useEffect(() => {

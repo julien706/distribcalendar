@@ -115,7 +115,7 @@ export default function StatusFilter({ selectedStatuses, onStatusChange, showNum
                   <ToggleGroupItem
                     key={status}
                     value={status}
-                    className="h-8 px-2 text-[11px] data-[state=on]:bg-primary/10 data-[state=on]:ring-1 data-[state=on]:ring-primary/40 font-medium flex items-center gap-1"
+                    className="min-h-10 px-2 text-[11px] data-[state=on]:bg-primary/10 data-[state=on]:ring-1 data-[state=on]:ring-primary/40 font-medium flex items-center gap-1 touch-manipulation"
                     aria-pressed={isOn}
                   >
                     <Icon className="h-3.5 w-3.5" style={{ color: config.color }} />

@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import MapView from "@/components/MapView";
-import AddressList from "@/components/AddressList";
-import AddressForm from "@/components/AddressForm";
 import { Map, List, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
+
+// Lazy load heavy components
+const MapView = lazy(() => import("@/components/MapView"));
+const AddressList = lazy(() => import("@/components/AddressList"));
+const AddressForm = lazy(() => import("@/components/AddressForm"));
 
 type Address = {
   id: string;
@@ -72,7 +74,13 @@ export default function Index() {
           className="flex-1 relative min-h-0 m-0 animate-fade-in"
         >
           <div className="absolute inset-0">
-            <MapView />
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-full">
+                <div className="animate-pulse text-muted-foreground">Chargement de la carte...</div>
+              </div>
+            }>
+              <MapView />
+            </Suspense>
           </div>
         </TabsContent>
 
@@ -81,19 +89,27 @@ export default function Index() {
           className="flex-1 relative min-h-0 m-0 animate-fade-in overflow-hidden"
         >
           <div className="absolute inset-0 overflow-y-auto">
-            <AddressList onSelectAddress={(address) => {
-              setSelectedAddress(address);
-            }} />
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-full p-8">
+                <div className="animate-pulse text-muted-foreground">Chargement de la liste...</div>
+              </div>
+            }>
+              <AddressList onSelectAddress={(address) => {
+                setSelectedAddress(address);
+              }} />
+            </Suspense>
           </div>
         </TabsContent>
       </Tabs>
 
       {/* Address form dialog */}
-      <AddressForm
-        address={selectedAddress}
-        open={!!selectedAddress}
-        onClose={() => setSelectedAddress(null)}
-      />
+      <Suspense fallback={null}>
+        <AddressForm
+          address={selectedAddress}
+          open={!!selectedAddress}
+          onClose={() => setSelectedAddress(null)}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -43,7 +43,7 @@ const STATUS_VARIANTS = {
 } as const;
 
 export default function AddressList({ onSelectAddress }: { onSelectAddress: (address: Address) => void }) {
-  const PAGE_SIZE = 10000;
+  const PAGE_SIZE = 100;
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited" | null>(null);
@@ -54,8 +54,17 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [totalCount, setTotalCount] = useState(0);
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const fetchStreets = async () => {
     let allStreets: string[] = [];
@@ -140,8 +149,8 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
       query = query.contains("csv_data", { commune_nom: cityFilter });
     }
 
-    if (searchQuery) {
-      query = query.or(`street_name.ilike.%${searchQuery}%,street_number.ilike.%${searchQuery}%`);
+    if (debouncedSearch) {
+      query = query.or(`street_name.ilike.%${debouncedSearch}%,street_number.ilike.%${debouncedSearch}%`);
     }
 
     const { count, error } = await query;
@@ -166,8 +175,8 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
         if (cityFilter) {
           q = q.contains("csv_data", { commune_nom: cityFilter });
         }
-        if (searchQuery) {
-          q = q.or(`street_name.ilike.%${searchQuery}%,street_number.ilike.%${searchQuery}%`);
+        if (debouncedSearch) {
+          q = q.or(`street_name.ilike.%${debouncedSearch}%,street_number.ilike.%${debouncedSearch}%`);
         }
 
         const { count } = await q;
@@ -198,8 +207,8 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
       query = query.contains("csv_data", { commune_nom: cityFilter });
     }
 
-    if (searchQuery) {
-      query = query.or(`street_name.ilike.%${searchQuery}%,street_number.ilike.%${searchQuery}%`);
+    if (debouncedSearch) {
+      query = query.or(`street_name.ilike.%${debouncedSearch}%,street_number.ilike.%${debouncedSearch}%`);
     }
 
     const { data, error } = await query;
@@ -251,7 +260,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [filter, streetFilter, cityFilter, searchQuery]);
+  }, [filter, streetFilter, cityFilter, debouncedSearch]);
 
   // Les compteurs par statut proviennent du backend (tous les résultats, pas seulement la page courante)
   // statusCounts est géré par l'état via fetchStatusCounts
@@ -376,7 +385,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
                     <CardTitle className="text-sm sm:text-base truncate">
                       {address.street_number || ""} {address.street_name}
                     </CardTitle>
-                    <CardDescription className="text-xs mt-1 space-y-0.5">
+                    <div className="text-xs mt-1 space-y-0.5 text-muted-foreground">
                       {(address.csv_data as any)?.commune_nom && (
                         <div className="truncate font-medium text-foreground/70">
                           {(address.csv_data as any).commune_nom}
@@ -386,7 +395,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
                         <MapPin className="inline h-3 w-3 mr-1" />
                         {address.latitude.toFixed(6)}, {address.longitude.toFixed(6)}
                       </div>
-                    </CardDescription>
+                    </div>
                   </div>
                   <Badge variant={STATUS_VARIANTS[address.status as keyof typeof STATUS_VARIANTS] || "secondary"} className="shrink-0 text-xs">
                     {(() => {
