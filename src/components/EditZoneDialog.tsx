@@ -5,15 +5,17 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Edit3 } from "lucide-react";
 
 type EditZoneDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   zone: { id: string; name: string; color: string; boundary_coordinates: any } | null;
   onSuccess: () => void;
+  onEditShape: () => void;
 };
 
-export default function EditZoneDialog({ open, onOpenChange, zone, onSuccess }: EditZoneDialogProps) {
+export default function EditZoneDialog({ open, onOpenChange, zone, onSuccess, onEditShape }: EditZoneDialogProps) {
   const [name, setName] = useState("");
   const [color, setColor] = useState("#10B981");
 
@@ -82,6 +84,19 @@ export default function EditZoneDialog({ open, onOpenChange, zone, onSuccess }: 
                 className="flex-1"
               />
             </div>
+          </div>
+          <div className="pt-2 border-t">
+            <Button
+              onClick={() => {
+                onEditShape();
+                onOpenChange(false);
+              }}
+              variant="outline"
+              className="w-full"
+            >
+              <Edit3 className="h-4 w-4 mr-2" />
+              Modifier la forme de la zone
+            </Button>
           </div>
         </div>
         <div className="flex justify-end gap-2">

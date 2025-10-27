@@ -86,6 +86,8 @@ export default function MapView() {
   const [drawnZonePolygon, setDrawnZonePolygon] = useState<L.LatLng[] | null>(null);
   const [editingZone, setEditingZone] = useState<Zone | null>(null);
   const [showEditZone, setShowEditZone] = useState(false);
+  const [editingZoneShape, setEditingZoneShape] = useState(false);
+  const editingZoneLayerRef = useRef<L.Polygon | null>(null);
   
   // Map layers state
   const [currentLayer, setCurrentLayer] = useState<'osm' | 'satellite' | 'hybrid'>(() => {
@@ -377,6 +379,11 @@ export default function MapView() {
       return;
     }
 
+    if (editingZoneShape) {
+      toast.info("Désactivez l'édition de zone d'abord");
+      return;
+    }
+
     if (!zoneMode) {
       // Enable zone mode
       const drawControl = new L.Control.Draw({
@@ -426,6 +433,97 @@ export default function MapView() {
       setDrawnZonePolygon(null);
       toast.info("Mode zone désactivé");
     }
+  };
+
+  const startEditingZoneShape = (zone: Zone) => {
+    if (!mapRef.current || !drawnItemsRef.current) return;
+
+    // Disable other modes
+    if (zoneMode) toggleZoneMode();
+    if (lassoMode) toggleLassoMode();
+    if (addMode) toggleAddMode();
+
+    setEditingZoneShape(true);
+    setShowEditZone(false);
+
+    // Convert zone boundary to LatLng format
+    const latlngs: [number, number][] = zone.boundary_coordinates.map(coord => [coord[1], coord[0]]);
+    
+    // Create editable polygon
+    const polygon = L.polygon(latlngs, {
+      color: zone.color,
+      fillColor: zone.color,
+      fillOpacity: 0.3,
+      weight: 3,
+    });
+
+    polygon.addTo(drawnItemsRef.current);
+    editingZoneLayerRef.current = polygon;
+
+    // Enable editing
+    const drawControl = new L.Control.Draw({
+      draw: {
+        polygon: false,
+        polyline: false,
+        rectangle: false,
+        circle: false,
+        marker: false,
+        circlemarker: false,
+      },
+      edit: {
+        featureGroup: drawnItemsRef.current,
+        remove: false,
+      },
+    });
+
+    mapRef.current.addControl(drawControl);
+    drawControlRef.current = drawControl;
+
+    // Fit bounds to the polygon
+    mapRef.current.fitBounds(polygon.getBounds(), { padding: [50, 50] });
+
+    toast.info("Modifiez la zone en déplaçant les points, puis cliquez sur Enregistrer");
+  };
+
+  const saveEditedZoneShape = async () => {
+    if (!editingZone || !editingZoneLayerRef.current) return;
+
+    try {
+      const latlngs = editingZoneLayerRef.current.getLatLngs()[0] as L.LatLng[];
+      const coordinates = latlngs.map(ll => [ll.lng, ll.lat]);
+
+      const { error } = await supabase
+        .from("zones")
+        .update({ boundary_coordinates: coordinates })
+        .eq("id", editingZone.id);
+
+      if (error) throw error;
+
+      toast.success("Forme de la zone mise à jour");
+      cancelEditingZoneShape();
+    } catch (error) {
+      console.error("Error updating zone shape:", error);
+      toast.error("Erreur lors de la mise à jour");
+    }
+  };
+
+  const cancelEditingZoneShape = () => {
+    if (!mapRef.current) return;
+
+    // Remove draw control
+    if (drawControlRef.current) {
+      mapRef.current.removeControl(drawControlRef.current);
+      drawControlRef.current = null;
+    }
+
+    // Clear editing layer
+    if (editingZoneLayerRef.current) {
+      drawnItemsRef.current?.removeLayer(editingZoneLayerRef.current);
+      editingZoneLayerRef.current = null;
+    }
+
+    setEditingZoneShape(false);
+    setEditingZone(null);
   };
 
   const isPointInPolygon = (point: L.LatLng, polygon: L.LatLng[]) => {
@@ -1047,7 +1145,24 @@ export default function MapView() {
         onSuccess={() => {
           setEditingZone(null);
         }}
+        onEditShape={() => {
+          if (editingZone) {
+            startEditingZoneShape(editingZone);
+          }
+        }}
       />
+
+      {/* Zone Shape Editing Overlay */}
+      {editingZoneShape && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[12000] flex gap-2">
+          <Button onClick={saveEditedZoneShape} size="lg">
+            Enregistrer la forme
+          </Button>
+          <Button onClick={cancelEditingZoneShape} variant="outline" size="lg">
+            Annuler
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
