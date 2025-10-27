@@ -56,8 +56,14 @@ export default function CSVImporter({
     // Validate and transform data
     data.forEach((row, index) => {
       try {
+        // Récupérer le nom de rue et vérifier qu'il n'est pas vide
+        const streetName = row[columnMapping.street_name]?.trim();
+        if (!streetName) {
+          throw new Error("Le nom de rue est manquant ou vide");
+        }
+        
         const transformedRow: any = {
-          street_name: row[columnMapping.street_name] || "Rue inconnue",
+          street_name: streetName,
           latitude: parseFloat(String(row[columnMapping.latitude] || "0").replace(',', '.')),
           longitude: parseFloat(String(row[columnMapping.longitude] || "0").replace(',', '.')),
           status: "pending" as const,
@@ -151,10 +157,14 @@ export default function CSVImporter({
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      delimiter: "", // Auto-detect delimiter (virgule ou point-virgule)
+      delimitersToGuess: [';', ',', '\t', '|'], // Essayer point-virgule en premier pour BAN
       complete: async (results) => {
         const rows = results.data as any[];
         const headers = results.meta.fields || [];
+        
+        console.log("Headers détectés:", headers);
+        console.log("Première ligne:", rows[0]);
+        console.log("Délimiteur détecté:", results.meta.delimiter);
         
         if (headers.length === 0) {
           toast.error("Fichier CSV vide ou invalide");
