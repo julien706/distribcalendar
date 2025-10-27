@@ -69,6 +69,7 @@ export default function CSVImporter({
         }
         
         if (columnMapping.city && row[columnMapping.city]) {
+          transformedRow.city = row[columnMapping.city];
           transformedRow.csv_data.commune_nom = row[columnMapping.city];
         }
         
@@ -204,6 +205,7 @@ export default function CSVImporter({
                 return {
                   street_name: row.voie_nom || row.lieudit_complement_nom || "Rue inconnue",
                   street_number: row.numero || null,
+                  city: row.commune_nom || null,
                   is_even: row.numero ? parseInt(row.numero) % 2 === 0 : null,
                   latitude: lat,
                   longitude: lng,

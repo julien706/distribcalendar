@@ -54,6 +54,7 @@ export type Database = {
       }
       addresses: {
         Row: {
+          city: string | null
           created_at: string
           csv_data: Json | null
           id: string
@@ -69,6 +70,7 @@ export type Database = {
           zone_id: string | null
         }
         Insert: {
+          city?: string | null
           created_at?: string
           csv_data?: Json | null
           id?: string
@@ -84,6 +86,7 @@ export type Database = {
           zone_id?: string | null
         }
         Update: {
+          city?: string | null
           created_at?: string
           csv_data?: Json | null
           id?: string

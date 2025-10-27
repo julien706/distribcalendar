@@ -6,6 +6,7 @@ type Address = {
   id: string;
   street_name: string;
   street_number: string | null;
+  city: string | null;
   latitude: number;
   longitude: number;
   status: string;

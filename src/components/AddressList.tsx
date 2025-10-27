@@ -26,6 +26,7 @@ type Address = {
   id: string;
   street_name: string;
   street_number: string | null;
+  city: string | null;
   latitude: number;
   longitude: number;
   status: string;
@@ -106,8 +107,8 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     while (hasMore) {
       const { data, error } = await supabase
         .from("addresses")
-        .select("csv_data")
-        .not("csv_data", "is", null)
+        .select("city")
+        .not("city", "is", null)
         .range(start, start + batchSize - 1);
 
       if (error) {
@@ -116,12 +117,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
       }
 
       if (data && data.length > 0) {
-        const cities = data
-          .map(addr => {
-            const csvData = addr.csv_data as any;
-            return csvData?.commune_nom;
-          })
-          .filter(Boolean);
+        const cities = data.map(addr => addr.city).filter(Boolean);
         allCities = [...allCities, ...cities];
         start += batchSize;
         hasMore = data.length === batchSize;
@@ -146,7 +142,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     }
 
     if (cityFilter) {
-      query = query.contains("csv_data", { commune_nom: cityFilter });
+      query = query.eq("city", cityFilter);
     }
 
     if (debouncedSearch) {
@@ -173,7 +169,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
           q = q.eq("street_name", streetFilter);
         }
         if (cityFilter) {
-          q = q.contains("csv_data", { commune_nom: cityFilter });
+          q = q.eq("city", cityFilter);
         }
         if (debouncedSearch) {
           q = q.or(`street_name.ilike.%${debouncedSearch}%,street_number.ilike.%${debouncedSearch}%`);
@@ -204,7 +200,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     }
 
     if (cityFilter) {
-      query = query.contains("csv_data", { commune_nom: cityFilter });
+      query = query.eq("city", cityFilter);
     }
 
     if (debouncedSearch) {
@@ -386,9 +382,9 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
                       {address.street_number || ""} {address.street_name}
                     </CardTitle>
                     <div className="text-xs mt-1 space-y-0.5 text-muted-foreground">
-                      {(address.csv_data as any)?.commune_nom && (
+                      {address.city && (
                         <div className="truncate font-medium text-foreground/70">
-                          {(address.csv_data as any).commune_nom}
+                          {address.city}
                         </div>
                       )}
                       <div className="truncate">
