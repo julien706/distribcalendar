@@ -108,19 +108,21 @@ export default function UserManagement() {
       const existingRole = users.find(u => u.profile.id === userId)?.role;
 
       if (existingRole) {
-        const { error } = await supabase
+        // Delete then insert (no UPDATE policy exists)
+        const { error: deleteError } = await supabase
           .from("user_roles")
-          .update({ role: newRole as any })
+          .delete()
           .eq("user_id", userId);
 
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("user_roles")
-          .insert({ user_id: userId, role: newRole as any });
-
-        if (error) throw error;
+        if (deleteError) throw deleteError;
       }
+
+      // Insert the new role
+      const { error: insertError } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: newRole as any });
+
+      if (insertError) throw insertError;
 
       toast.success("Rôle mis à jour");
       fetchData();

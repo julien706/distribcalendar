@@ -240,9 +240,15 @@ export default function CSVImporter({
         <div className="space-y-4 py-4">
           <Alert>
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Le fichier CSV doit contenir les colonnes : voie_nom, numero, lat, long.
-              Supporte l'import de plus de 1000 adresses avec traitement par batch optimisé.
+            <AlertDescription className="space-y-2">
+              <p>Le fichier CSV doit contenir les colonnes : <strong>voie_nom</strong>, <strong>numero</strong>, <strong>lat</strong>, <strong>long</strong>.</p>
+              <p className="text-xs">Supporte l'import de plus de 1000 adresses avec traitement par batch optimisé.</p>
+              <div className="mt-2 p-2 bg-muted rounded text-xs font-mono">
+                <div className="font-semibold mb-1">Exemple de format CSV :</div>
+                <div>commune_nom,voie_nom,numero,lat,long</div>
+                <div>Paris,Rue de la Paix,12,48.8566,2.3522</div>
+                <div>Lyon,Avenue des Lumières,45,45.7640,4.8357</div>
+              </div>
             </AlertDescription>
           </Alert>
 
