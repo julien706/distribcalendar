@@ -3,10 +3,9 @@ import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
 import { Filter, X, Hash, Hexagon } from "lucide-react";
-import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
-import { ScrollArea } from "./ui/scroll-area";
+import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 import {
   Popover,
   PopoverContent,
@@ -22,25 +21,27 @@ type StatusFilterProps = {
   onShowZonesChange: (show: boolean) => void;
 };
 
+const SHORT_LABELS: Record<StatusType, string> = {
+  pending: "Att",
+  done: "Fait",
+  retry_first: "R1",
+  retry_second: "R2",
+  refused: "Ref",
+  uninhabited: "Inh",
+  no_answer: "NR",
+};
+
 export default function StatusFilter({ selectedStatuses, onStatusChange, showNumbers, onShowNumbersChange, showZones, onShowZonesChange }: StatusFilterProps) {
   const [open, setOpen] = useState(false);
   const allStatuses = Object.keys(STATUS_CONFIG) as StatusType[];
   const allSelected = selectedStatuses.length === allStatuses.length;
 
-  const toggleStatus = (status: StatusType) => {
-    if (selectedStatuses.includes(status)) {
-      onStatusChange(selectedStatuses.filter((s) => s !== status));
-    } else {
-      onStatusChange([...selectedStatuses, status]);
-    }
+  const selectAll = () => {
+    onStatusChange(allStatuses);
   };
 
-  const toggleAll = () => {
-    if (allSelected) {
-      onStatusChange([]);
-    } else {
-      onStatusChange(allStatuses);
-    }
+  const selectNone = () => {
+    onStatusChange([]);
   };
 
   const getFilterCount = () => {
@@ -66,63 +67,63 @@ export default function StatusFilter({ selectedStatuses, onStatusChange, showNum
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-60 p-2 z-[12010]" align="end">
-        <div className="space-y-2">
+      <PopoverContent className="w-60 p-2 max-h-[min(60vh,280px)] overflow-y-auto z-[12010]" align="end">
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between pb-1.5 border-b">
-            <h4 className="font-medium text-sm">Filtrer par statut</h4>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setOpen(false)}
-              className="h-5 w-5 p-0"
-            >
-              <X className="h-3.5 w-3.5" />
-            </Button>
+            <h4 className="font-medium text-sm">Filtres</h4>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={selectAll}
+                className="h-6 px-2 text-[11px]"
+              >
+                Tout
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={selectNone}
+                className="h-6 px-2 text-[11px]"
+              >
+                Aucun
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setOpen(false)}
+                className="h-6 w-6 p-0"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center space-x-2 py-0.5">
-              <Checkbox
-                id="all-statuses"
-                checked={allSelected}
-                onCheckedChange={toggleAll}
-              />
-              <Label
-                htmlFor="all-statuses"
-                className="text-sm font-medium cursor-pointer flex-1"
-              >
-                Tous les statuts
-              </Label>
-            </div>
+          <div>
+            <ToggleGroup
+              type="multiple"
+              value={selectedStatuses as string[]}
+              onValueChange={(vals) => onStatusChange(vals as StatusType[])}
+              className="grid grid-cols-3 gap-1.5"
+            >
+              {allStatuses.map((status) => {
+                const config = STATUS_CONFIG[status];
+                const Icon = config.icon;
+                const isOn = selectedStatuses.includes(status);
 
-            <div className="border-t my-1" />
-
-            <ScrollArea className="h-[180px]">
-              <div className="space-y-0.5 pr-3">
-                {allStatuses.map((status) => {
-                  const config = STATUS_CONFIG[status];
-                  const Icon = config.icon;
-                  const isChecked = selectedStatuses.includes(status);
-
-                  return (
-                    <div key={status} className="flex items-center space-x-2 py-0.5">
-                      <Checkbox
-                        id={status}
-                        checked={isChecked}
-                        onCheckedChange={() => toggleStatus(status)}
-                      />
-                      <Label
-                        htmlFor={status}
-                        className="text-sm cursor-pointer flex-1 flex items-center gap-1.5"
-                      >
-                        <Icon className="h-3.5 w-3.5" style={{ color: config.color }} />
-                        {config.label}
-                      </Label>
-                    </div>
-                  );
-                })}
-              </div>
-            </ScrollArea>
+                return (
+                  <ToggleGroupItem
+                    key={status}
+                    value={status}
+                    className="h-8 px-2 text-[11px] data-[state=on]:bg-primary/10 data-[state=on]:ring-1 data-[state=on]:ring-primary/40 font-medium flex items-center gap-1"
+                    aria-pressed={isOn}
+                  >
+                    <Icon className="h-3.5 w-3.5" style={{ color: config.color }} />
+                    <span>{SHORT_LABELS[status]}</span>
+                  </ToggleGroupItem>
+                );
+              })}
+            </ToggleGroup>
           </div>
 
           <div className="pt-1.5 border-t space-y-1.5">
@@ -154,7 +155,7 @@ export default function StatusFilter({ selectedStatuses, onStatusChange, showNum
             </div>
           </div>
 
-          <div className="pt-1.5 border-t text-xs text-muted-foreground">
+          <div className="pt-1 border-t text-[11px] text-muted-foreground">
             {getFilterCount()} statut(s)
           </div>
         </div>
