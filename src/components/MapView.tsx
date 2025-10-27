@@ -316,8 +316,9 @@ export default function MapView() {
           userLocationMarkerRef.current = marker;
           setUserLocation([latitude, longitude]);
 
-          // Center map on user location
-          mapRef.current.setView([latitude, longitude], 18);
+          // Center map on user location, keeping current zoom
+          const currentZoom = mapRef.current.getZoom();
+          mapRef.current.setView([latitude, longitude], currentZoom);
 
           toast.success("Position trouvée");
           setIsLocating(false);
@@ -1111,8 +1112,9 @@ export default function MapView() {
             });
             
             if (closestAddress && mapRef.current) {
-              // Center on address
-              mapRef.current.setView([closestAddress.latitude, closestAddress.longitude], 18);
+              // Center on address, keeping current zoom
+              const currentZoom = mapRef.current.getZoom();
+              mapRef.current.setView([closestAddress.latitude, closestAddress.longitude], currentZoom);
               
               // Open popup
               const marker = markersMapRef.current[closestAddress.id];
