@@ -189,12 +189,11 @@ export default function MapView() {
     map.addLayer(zonesLayer);
     zonesLayerRef.current = zonesLayer;
 
-    // Auto-locate user on startup
+    // Auto-locate user on startup (without centering map)
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          map.setView([latitude, longitude], 18);
           setUserLocation([latitude, longitude]);
           
           // Create custom blue marker for user location
