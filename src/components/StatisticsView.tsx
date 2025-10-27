@@ -89,20 +89,32 @@ export default function StatisticsView() {
       }
 
       // Calculate team stats
-      if (teams) {
+      if (teams && zones) {
         const tStats = teams.map((team: any) => {
-          const zones = team.zones || [];
+          const teamZones = zones.filter((z: any) => z.team_id === team.id);
           const members = team.team_members || [];
+          
+          // Calculate totals from all team zones
+          let total_addresses = 0;
+          let done = 0;
+          let pending = 0;
+          
+          teamZones.forEach((zone: any) => {
+            const addresses = zone.addresses || [];
+            total_addresses += addresses.length;
+            done += addresses.filter((a: any) => a.status === "done").length;
+            pending += addresses.filter((a: any) => a.status === "pending").length;
+          });
           
           return {
             team_id: team.id,
             team_name: team.name,
             team_color: team.color,
             total_members: members.length,
-            total_zones: zones.length,
-            total_addresses: 0, // To be calculated from zones
-            done: 0,
-            pending: 0,
+            total_zones: teamZones.length,
+            total_addresses,
+            done,
+            pending,
           };
         });
         setTeamStats(tStats);

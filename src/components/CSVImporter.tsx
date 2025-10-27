@@ -11,6 +11,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 import { Upload, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "./ui/alert";
@@ -31,6 +41,7 @@ export default function CSVImporter({
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvData, setCsvData] = useState<any[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [showDefaultConfirm, setShowDefaultConfirm] = useState(false);
 
   const processImport = async (data: any[], columnMapping: Record<string, string>) => {
     setImporting(true);
@@ -378,7 +389,7 @@ export default function CSVImporter({
               <div className="space-y-2">
                 <Button
                   className="w-full"
-                  onClick={handleImportDefault}
+                  onClick={() => setShowDefaultConfirm(true)}
                   disabled={importing}
                 >
                   <Upload className="mr-2 h-4 w-4" />
@@ -421,6 +432,26 @@ export default function CSVImporter({
           )}
         </div>
       </DialogContent>
+
+      <AlertDialog open={showDefaultConfirm} onOpenChange={setShowDefaultConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer l'import des données par défaut</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action va importer toutes les adresses du fichier par défaut. Voulez-vous continuer ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowDefaultConfirm(false);
+              handleImportDefault();
+            }}>
+              Confirmer l'import
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
