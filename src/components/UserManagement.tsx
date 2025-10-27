@@ -280,7 +280,7 @@ export default function UserManagement() {
             />
           </div>
           {pendingUsers.length > 0 && (
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
@@ -324,6 +324,7 @@ export default function UserManagement() {
             {activeUsers.length > 0 && (
               <h3 className="text-sm font-medium text-muted-foreground">Utilisateurs actifs</h3>
             )}
+            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
             {activeUsers.map((userData) => (
               <div key={userData.profile.id} className="p-4 border rounded-lg space-y-3">
                 <div className="flex items-start justify-between gap-4">
@@ -461,6 +462,7 @@ export default function UserManagement() {
                 </div>
               </div>
             ))}
+            </div>
           </div>
         </CardContent>
       </Card>

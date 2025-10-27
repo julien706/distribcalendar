@@ -164,7 +164,7 @@ const ZoneManagement = () => {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-2">
         {filteredZones.map((zone) => (
           <Card key={zone.id}>
             <CardHeader>
