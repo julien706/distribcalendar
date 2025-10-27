@@ -83,7 +83,7 @@ export default function MapView() {
   
   // Zone management state
   const [zones, setZones] = useState<Zone[]>([]);
-  const [showZones, setShowZones] = useState(false);
+  const [showZones, setShowZones] = useState(true);
   const zonesLayerRef = useRef<L.FeatureGroup | null>(null);
   const [zoneMode, setZoneMode] = useState(false);
   const [showCreateZone, setShowCreateZone] = useState(false);

@@ -12,7 +12,7 @@ import ZoneManagement from "@/components/ZoneManagement";
 import UserManagement from "@/components/UserManagement";
 import StatisticsView from "@/components/StatisticsView";
 import LogsView from "@/components/LogsView";
-import { ArrowLeft, Upload, LogOut, Trash2, Key, Download, Shield, RotateCcw, Users, AlertTriangle, Settings, BarChart3, FileText } from "lucide-react";
+import { ArrowLeft, Upload, LogOut, Trash2, Key, Download, Shield, RotateCcw, Users, AlertTriangle, Settings, BarChart3, FileText, Copy } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +45,8 @@ export default function Admin() {
   const [invitationCode, setInvitationCode] = useState("");
   const [newInvitationCode, setNewInvitationCode] = useState("");
   const [loadingInvitation, setLoadingInvitation] = useState(false);
+  const [duplicates, setDuplicates] = useState<any[]>([]);
+  const [loadingDuplicates, setLoadingDuplicates] = useState(false);
   const { signOut, isAdmin, userRole, userTeamIds } = useAuth();
   const navigate = useNavigate();
 
@@ -223,6 +225,70 @@ export default function Admin() {
     } catch (error: any) {
       console.error("Error resetting statuses:", error);
       toast.error("Erreur lors de la réinitialisation");
+    }
+  };
+
+  const findDuplicates = async () => {
+    setLoadingDuplicates(true);
+    try {
+      const { data: addresses, error } = await supabase
+        .from("addresses")
+        .select("*")
+        .order("street_name");
+
+      if (error) throw error;
+
+      // Group by street_name + street_number
+      const grouped = new Map<string, any[]>();
+      addresses?.forEach((addr) => {
+        const key = `${addr.street_name}|${addr.street_number || ""}`;
+        if (!grouped.has(key)) {
+          grouped.set(key, []);
+        }
+        grouped.get(key)!.push(addr);
+      });
+
+      // Find groups with more than one address
+      const duplicateGroups: any[] = [];
+      grouped.forEach((group, key) => {
+        if (group.length > 1) {
+          duplicateGroups.push({
+            key,
+            addresses: group,
+          });
+        }
+      });
+
+      setDuplicates(duplicateGroups);
+      toast.success(`${duplicateGroups.length} groupe(s) de doublons trouvé(s)`);
+    } catch (error: any) {
+      console.error("Error finding duplicates:", error);
+      toast.error("Erreur lors de la recherche de doublons");
+    } finally {
+      setLoadingDuplicates(false);
+    }
+  };
+
+  const removeDuplicates = async () => {
+    try {
+      let totalRemoved = 0;
+      for (const group of duplicates) {
+        // Keep the first address, delete the rest
+        const toDelete = group.addresses.slice(1).map((a: any) => a.id);
+        const { error } = await supabase
+          .from("addresses")
+          .delete()
+          .in("id", toDelete);
+
+        if (error) throw error;
+        totalRemoved += toDelete.length;
+      }
+
+      toast.success(`${totalRemoved} doublon(s) supprimé(s)`);
+      setDuplicates([]);
+    } catch (error: any) {
+      console.error("Error removing duplicates:", error);
+      toast.error("Erreur lors de la suppression des doublons");
     }
   };
 
@@ -549,6 +615,78 @@ export default function Admin() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+                </CardContent>
+              </Card>
+            )}
+
+            {isAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Copy className="h-5 w-5" />
+                    Gestion des doublons
+                  </CardTitle>
+                  <CardDescription>
+                    Détecter et supprimer les adresses en double (même rue et numéro)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button 
+                    onClick={findDuplicates} 
+                    disabled={loadingDuplicates}
+                    variant="outline"
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    {loadingDuplicates ? "Recherche..." : "Rechercher les doublons"}
+                  </Button>
+
+                  {duplicates.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold">
+                          {duplicates.length} groupe(s) de doublons trouvé(s)
+                        </p>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Supprimer tous les doublons
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Supprimer les doublons ?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Pour chaque groupe de doublons, la première adresse sera conservée et les autres seront supprimées.
+                                <p className="mt-2 font-semibold">
+                                  Cette action est irréversible !
+                                </p>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction onClick={removeDuplicates} className="bg-destructive hover:bg-destructive/90">
+                                Confirmer la suppression
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+
+                      <div className="space-y-2 max-h-96 overflow-y-auto border rounded-md p-3">
+                        {duplicates.map((group, index) => (
+                          <div key={index} className="border-l-4 border-orange-500 pl-3 py-2 bg-muted/50">
+                            <p className="font-medium text-sm">
+                              {group.addresses[0].street_name} {group.addresses[0].street_number || "(sans numéro)"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {group.addresses.length} entrées identiques
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
