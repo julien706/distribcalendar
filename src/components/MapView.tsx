@@ -95,7 +95,7 @@ export default function MapView() {
   const [zones, setZones] = useState<Zone[]>([]);
   const [showZones, setShowZones] = useState(() => {
     const saved = localStorage.getItem('mapShowZones');
-    return saved !== null ? saved === 'true' : true;
+    return saved !== null ? saved === 'true' : false;
   });
   const zonesLayerRef = useRef<L.FeatureGroup | null>(null);
   const [zoneMode, setZoneMode] = useState(false);
@@ -900,8 +900,8 @@ export default function MapView() {
       const color = statusConfig.color;
       const isSelected = selectedAddresses.includes(address.id);
       
-      // Determine if this is a manually added address (no csv_data)
-      const isManuallyAdded = !address.csv_data;
+      // Determine if this is a manually added address (no csv_data or empty csv_data)
+      const isManuallyAdded = !address.csv_data || (typeof address.csv_data === 'object' && Object.keys(address.csv_data).length === 0);
       const textColor = getContrastingTextColor(color);
       
       // Create custom icon with selection ring
