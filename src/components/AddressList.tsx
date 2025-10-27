@@ -117,7 +117,9 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
       }
 
       if (data && data.length > 0) {
-        const cities = data.map(addr => addr.city).filter(Boolean);
+        const cities = data
+          .map(addr => addr.city)
+          .filter(Boolean);
         allCities = [...allCities, ...cities];
         start += batchSize;
         hasMore = data.length === batchSize;
