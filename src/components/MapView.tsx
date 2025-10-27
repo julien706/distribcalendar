@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
-import { Navigation, Lasso, X, Trash2, MapPin, Layers, Route, Hexagon, Maximize, Navigation2 } from "lucide-react";
+import { Navigation, Lasso, X, Trash2, MapPin, Layers, Route, Hexagon, Maximize, Target } from "lucide-react";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import AddAddressDialog from "./AddAddressDialog";
@@ -1098,15 +1098,6 @@ export default function MapView() {
           </Button>
         )}
         <Button
-          onClick={handleGeolocate}
-          disabled={isLocating}
-          size="icon"
-          className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
-          title="Ma position"
-        >
-          <Navigation className={`h-5 w-5 ${isLocating ? "animate-pulse" : ""}`} />
-        </Button>
-        <Button
           onClick={() => {
             if (!userLocation || addresses.length === 0) {
               toast.error("Aucune position GPS disponible");
@@ -1142,10 +1133,19 @@ export default function MapView() {
           }}
           size="icon"
           variant="default"
-          className="h-14 w-14 rounded-full shadow-xl bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 touch-manipulation"
+          className="h-14 w-14 rounded-full shadow-xl bg-gradient-to-br from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 touch-manipulation"
           title="Adresse la plus proche"
         >
-          <Navigation2 className="h-6 w-6" />
+          <Target className="h-6 w-6" />
+        </Button>
+        <Button
+          onClick={handleGeolocate}
+          disabled={isLocating}
+          size="icon"
+          className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
+          title="Ma position"
+        >
+          <Navigation className={`h-5 w-5 ${isLocating ? "animate-pulse" : ""}`} />
         </Button>
         <Button
           onClick={() => {

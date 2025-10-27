@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BarChart3, Users, MapPin, Group } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 interface UserStats {
   user_id: string;
@@ -195,19 +196,42 @@ export default function StatisticsView() {
               </p>
             ) : (
               <>
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={zoneStats}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="zone_name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="done" fill="#10b981" name="Faites" />
-                      <Bar dataKey="pending" fill="#3b82f6" name="En attente" />
-                      <Bar dataKey="refused" fill="#ef4444" name="Refusées" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="h-[350px] w-full">
+                  <ChartContainer
+                    config={{
+                      done: {
+                        label: "Faites",
+                        color: "hsl(142, 76%, 36%)",
+                      },
+                      pending: {
+                        label: "En attente",
+                        color: "hsl(217, 91%, 60%)",
+                      },
+                      refused: {
+                        label: "Refusées",
+                        color: "hsl(0, 84%, 60%)",
+                      },
+                    }}
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={zoneStats} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis 
+                          dataKey="zone_name" 
+                          tick={{ fill: 'hsl(var(--foreground))' }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis tick={{ fill: 'hsl(var(--foreground))' }} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                        <Bar dataKey="done" fill="hsl(142, 76%, 36%)" name="Faites" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="pending" fill="hsl(217, 91%, 60%)" name="En attente" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="refused" fill="hsl(0, 84%, 60%)" name="Refusées" radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
                 </div>
                 {zoneStats.map((zone) => (
                   <div key={zone.zone_id} className="border rounded-lg p-4 space-y-2">
@@ -255,40 +279,69 @@ export default function StatisticsView() {
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={teamStats.map(t => ({ name: t.team_name, value: t.total_members }))}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {teamStats.map((team, index) => (
-                            <Cell key={`cell-${index}`} fill={team.team_color} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <p className="text-xs text-center text-muted-foreground mt-2">Membres par équipe</p>
+                  <div className="h-[350px]">
+                    <ChartContainer
+                      config={{
+                        members: {
+                          label: "Membres",
+                          color: "hsl(var(--primary))",
+                        },
+                      }}
+                    >
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={teamStats.map(t => ({ name: t.team_name, value: t.total_members }))}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            outerRadius={100}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {teamStats.map((team, index) => (
+                              <Cell key={`cell-${index}`} fill={team.team_color} />
+                            ))}
+                          </Pie>
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                    <p className="text-sm text-center text-muted-foreground mt-2 font-medium">Membres par équipe</p>
                   </div>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={teamStats}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="team_name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="total_zones" fill="#8b5cf6" name="Zones" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                    <p className="text-xs text-center text-muted-foreground mt-2">Zones par équipe</p>
+                  <div className="h-[350px]">
+                    <ChartContainer
+                      config={{
+                        zones: {
+                          label: "Zones",
+                          color: "hsl(262, 83%, 58%)",
+                        },
+                        addresses: {
+                          label: "Adresses",
+                          color: "hsl(217, 91%, 60%)",
+                        },
+                      }}
+                    >
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={teamStats} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis 
+                            dataKey="team_name" 
+                            tick={{ fill: 'hsl(var(--foreground))' }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={80}
+                          />
+                          <YAxis tick={{ fill: 'hsl(var(--foreground))' }} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                          <Bar dataKey="total_zones" fill="hsl(262, 83%, 58%)" name="Zones" radius={[8, 8, 0, 0]} />
+                          <Bar dataKey="total_addresses" fill="hsl(217, 91%, 60%)" name="Adresses" radius={[8, 8, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                    <p className="text-sm text-center text-muted-foreground mt-2 font-medium">Zones et adresses par équipe</p>
                   </div>
                 </div>
                 {teamStats.map((team) => (
