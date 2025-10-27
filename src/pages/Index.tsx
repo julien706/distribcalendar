@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Map, List, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAddresses } from "@/hooks/useAddresses";
+import { Progress } from "@/components/ui/progress";
 
 // Lazy load heavy components
 const MapView = lazy(() => import("@/components/MapView"));
@@ -25,6 +27,11 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState("map");
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { data: addresses = [] } = useAddresses();
+
+  const totalAddresses = addresses.length;
+  const completedAddresses = addresses.filter(a => a.status === 'done').length;
+  const completionRate = totalAddresses > 0 ? Math.round((completedAddresses / totalAddresses) * 100) : 0;
 
   useEffect(() => {
     if (!loading && !user) {
@@ -46,7 +53,19 @@ export default function Index() {
               </Button>
             </div>
           </div>
-          <h2 className="text-xs sm:text-sm text-muted-foreground">Gestion distribution des calendriers</h2>
+          <div className="space-y-2">
+            <h2 className="text-xs sm:text-sm text-muted-foreground">Gestion distribution des calendriers</h2>
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <Progress value={completionRate} className="h-2" />
+              </div>
+              <div className="text-xs font-medium whitespace-nowrap">
+                <span className="text-primary">{completedAddresses}</span>
+                <span className="text-muted-foreground">/{totalAddresses}</span>
+                <span className="text-muted-foreground ml-1">({completionRate}%)</span>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
