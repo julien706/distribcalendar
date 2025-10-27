@@ -43,7 +43,7 @@ const STATUS_VARIANTS = {
 } as const;
 
 export default function AddressList({ onSelectAddress }: { onSelectAddress: (address: Address) => void }) {
-  const PAGE_SIZE = 1000;
+  const PAGE_SIZE = 10000;
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited" | null>(null);
