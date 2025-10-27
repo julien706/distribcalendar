@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Users, MapPin } from "lucide-react";
+import { Plus, Users, MapPin, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import TeamManagement from "@/components/TeamManagement";
 
@@ -16,6 +17,7 @@ interface Team {
 }
 
 const Teams = () => {
+  const navigate = useNavigate();
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -84,17 +86,27 @@ const Teams = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Gestion des Équipes</h1>
-          <p className="text-muted-foreground mt-1">
-            Créez et gérez vos équipes de distribution
-          </p>
-        </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouvelle équipe
+      <div className="flex flex-col gap-4 mb-6">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate(-1)}
+          className="self-start"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Retour
         </Button>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Gestion des Équipes</h1>
+            <p className="text-muted-foreground mt-1">
+              Créez et gérez vos équipes de distribution
+            </p>
+          </div>
+          <Button onClick={() => handleOpenDialog()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nouvelle équipe
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

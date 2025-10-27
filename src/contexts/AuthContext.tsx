@@ -8,7 +8,7 @@ type AuthContextType = {
   loading: boolean;
   isAdmin: boolean;
   userRole: string | null;
-  userTeamId: string | null;
+  userTeamIds: string[];
   signOut: () => Promise<void>;
   refreshUserData: () => Promise<void>;
 };
@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [userTeamId, setUserTeamId] = useState<string | null>(null);
+  const [userTeamIds, setUserTeamIds] = useState<string[]>([]);
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -40,19 +40,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(false);
       }
 
-      // Fetch user team
-      const { data: teamData } = await supabase
+      // Fetch user teams (multiple teams support)
+      const { data: teamsData } = await supabase
         .from("team_members")
         .select("team_id")
-        .eq("user_id", userId)
-        .maybeSingle();
+        .eq("user_id", userId);
 
-      setUserTeamId(teamData?.team_id || null);
+      setUserTeamIds(teamsData?.map(t => t.team_id) || []);
     } catch (error) {
       console.error("Error fetching user data:", error);
       setUserRole("user");
       setIsAdmin(false);
-      setUserTeamId(null);
+      setUserTeamIds([]);
     }
   };
 
@@ -77,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setUserRole(null);
           setIsAdmin(false);
-          setUserTeamId(null);
+          setUserTeamIds([]);
         }
         
         setLoading(false);
@@ -105,11 +104,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setUserRole(null);
     setIsAdmin(false);
-    setUserTeamId(null);
+    setUserTeamIds([]);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, userRole, userTeamId, signOut, refreshUserData }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, userRole, userTeamIds, signOut, refreshUserData }}>
       {children}
     </AuthContext.Provider>
   );

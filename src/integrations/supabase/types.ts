@@ -287,7 +287,7 @@ export type Database = {
         Args: { _address_ids: string[]; _zone_id: string }
         Returns: undefined
       }
-      get_user_team_id: { Args: { _user_id: string }; Returns: string }
+      get_user_team_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_zone_ids: { Args: { _user_id: string }; Returns: string[] }
       get_zone_stats: {
         Args: { _zone_id: string }

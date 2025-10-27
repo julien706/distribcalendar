@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
-import { Filter, X, Hash } from "lucide-react";
+import { Filter, X, Hash, Hexagon } from "lucide-react";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
@@ -17,9 +17,11 @@ type StatusFilterProps = {
   onStatusChange: (statuses: StatusType[]) => void;
   showNumbers: boolean;
   onShowNumbersChange: (show: boolean) => void;
+  showZones: boolean;
+  onShowZonesChange: (show: boolean) => void;
 };
 
-export default function StatusFilter({ selectedStatuses, onStatusChange, showNumbers, onShowNumbersChange }: StatusFilterProps) {
+export default function StatusFilter({ selectedStatuses, onStatusChange, showNumbers, onShowNumbersChange, showZones, onShowZonesChange }: StatusFilterProps) {
   const [open, setOpen] = useState(false);
   const allStatuses = Object.keys(STATUS_CONFIG) as StatusType[];
   const allSelected = selectedStatuses.length === allStatuses.length;
@@ -122,7 +124,7 @@ export default function StatusFilter({ selectedStatuses, onStatusChange, showNum
             })}
           </div>
 
-          <div className="pt-2 border-t">
+          <div className="pt-2 border-t space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Hash className="h-4 w-4 text-muted-foreground" />
@@ -134,6 +136,19 @@ export default function StatusFilter({ selectedStatuses, onStatusChange, showNum
                 id="show-numbers"
                 checked={showNumbers}
                 onCheckedChange={onShowNumbersChange}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Hexagon className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="show-zones" className="text-sm cursor-pointer">
+                  Afficher les zones
+                </Label>
+              </div>
+              <Switch
+                id="show-zones"
+                checked={showZones}
+                onCheckedChange={onShowZonesChange}
               />
             </div>
           </div>

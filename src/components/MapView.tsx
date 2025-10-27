@@ -15,6 +15,7 @@ import EditManualAddressDialog from "./EditManualAddressDialog";
 import StatusFilter from "./StatusFilter";
 import RouteOptimizer from "./RouteOptimizer";
 import CreateZoneDialog from "./CreateZoneDialog";
+import EditZoneDialog from "./EditZoneDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,11 +79,13 @@ export default function MapView() {
   
   // Zone management state
   const [zones, setZones] = useState<Zone[]>([]);
-  const [showZones, setShowZones] = useState(true);
+  const [showZones, setShowZones] = useState(false);
   const zonesLayerRef = useRef<L.FeatureGroup | null>(null);
   const [zoneMode, setZoneMode] = useState(false);
   const [showCreateZone, setShowCreateZone] = useState(false);
   const [drawnZonePolygon, setDrawnZonePolygon] = useState<L.LatLng[] | null>(null);
+  const [editingZone, setEditingZone] = useState<Zone | null>(null);
+  const [showEditZone, setShowEditZone] = useState(false);
   
   // Map layers state
   const [currentLayer, setCurrentLayer] = useState<'osm' | 'satellite' | 'hybrid'>(() => {
@@ -631,6 +634,21 @@ export default function MapView() {
       });
 
       polygon.bindPopup(`<strong>${zone.name}</strong>`, { className: "zone-popup" });
+      
+      // Add click event to edit zone (only for admins)
+      if (isAdmin) {
+        polygon.on('click', () => {
+          setEditingZone(zone);
+          setShowEditZone(true);
+        });
+        polygon.on('mouseover', function() {
+          this.setStyle({ fillOpacity: 0.4, weight: 3 });
+        });
+        polygon.on('mouseout', function() {
+          this.setStyle({ fillOpacity: 0.2, weight: 2 });
+        });
+      }
+      
       polygon.addTo(zonesLayerRef.current!);
     });
   }, [zones, showZones]);
@@ -851,6 +869,8 @@ export default function MapView() {
           onStatusChange={setStatusFilter}
           showNumbers={showNumbers}
           onShowNumbersChange={setShowNumbers}
+          showZones={showZones}
+          onShowZonesChange={setShowZones}
         />
         <Button
           onClick={toggleAddMode}
@@ -865,19 +885,21 @@ export default function MapView() {
             <MapPin className="h-5 w-5" />
           )}
         </Button>
-        <Button
-          onClick={toggleLassoMode}
-          size="icon"
-          variant={lassoMode ? "default" : "outline"}
-          className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
-          title="Sélection multiple"
-        >
-          {lassoMode ? (
-            <X className="h-5 w-5" />
-          ) : (
-            <Lasso className="h-5 w-5" />
-          )}
-        </Button>
+        {isAdmin && (
+          <Button
+            onClick={toggleLassoMode}
+            size="icon"
+            variant={lassoMode ? "default" : "outline"}
+            className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
+            title="Sélection multiple"
+          >
+            {lassoMode ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Lasso className="h-5 w-5" />
+            )}
+          </Button>
+        )}
         <Button
           onClick={toggleMapLayer}
           size="icon"
@@ -1014,6 +1036,16 @@ export default function MapView() {
           if (zoneMode) {
             toggleZoneMode();
           }
+        }}
+      />
+
+      {/* Edit Zone Dialog */}
+      <EditZoneDialog
+        open={showEditZone}
+        onOpenChange={setShowEditZone}
+        zone={editingZone}
+        onSuccess={() => {
+          setEditingZone(null);
         }}
       />
     </div>

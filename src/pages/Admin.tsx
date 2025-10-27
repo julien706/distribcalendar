@@ -42,7 +42,7 @@ export default function Admin() {
   const [invitationCode, setInvitationCode] = useState("");
   const [newInvitationCode, setNewInvitationCode] = useState("");
   const [loadingInvitation, setLoadingInvitation] = useState(false);
-  const { signOut, isAdmin, userRole, userTeamId } = useAuth();
+  const { signOut, isAdmin, userRole, userTeamIds } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -245,7 +245,7 @@ export default function Admin() {
       </header>
 
       <div className="container max-w-4xl mx-auto p-4 space-y-4">
-        {!userTeamId && !isAdmin && (
+        {userTeamIds.length === 0 && !isAdmin && (
           <Card className="border-orange-500">
             <CardContent className="pt-6">
               <div className="flex items-start gap-3">
