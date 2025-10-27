@@ -38,6 +38,7 @@ interface TeamStats {
   total_addresses: number;
   done: number;
   pending: number;
+  refused: number;
 }
 
 export default function StatisticsView() {
@@ -98,12 +99,14 @@ export default function StatisticsView() {
           let total_addresses = 0;
           let done = 0;
           let pending = 0;
+          let refused = 0;
           
           teamZones.forEach((zone: any) => {
             const addresses = zone.addresses || [];
             total_addresses += addresses.length;
             done += addresses.filter((a: any) => a.status === "done").length;
             pending += addresses.filter((a: any) => a.status === "pending").length;
+            refused += addresses.filter((a: any) => a.status === "refused").length;
           });
           
           return {
@@ -115,6 +118,7 @@ export default function StatisticsView() {
             total_addresses,
             done,
             pending,
+            refused,
           };
         });
         setTeamStats(tStats);
@@ -298,7 +302,7 @@ export default function StatisticsView() {
                         <h3 className="font-semibold">{team.team_name}</h3>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
                       <div>
                         <p className="text-muted-foreground">Membres</p>
                         <p className="font-semibold">{team.total_members}</p>
@@ -310,6 +314,18 @@ export default function StatisticsView() {
                       <div>
                         <p className="text-muted-foreground">Adresses</p>
                         <p className="font-semibold">{team.total_addresses}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Faites</p>
+                        <p className="font-semibold text-green-600">{team.done}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">En attente</p>
+                        <p className="font-semibold text-blue-600">{team.pending}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Refusées</p>
+                        <p className="font-semibold text-red-600">{team.refused}</p>
                       </div>
                     </div>
                   </div>

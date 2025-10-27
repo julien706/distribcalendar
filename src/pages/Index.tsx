@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import MapView from "@/components/MapView";
 import AddressList from "@/components/AddressList";
 import AddressForm from "@/components/AddressForm";
-import { Map, List, Settings, Zap } from "lucide-react";
+import { Map, List, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import QuickDistributionMode from "@/components/QuickDistributionMode";
 
 type Address = {
   id: string;
@@ -22,7 +21,6 @@ type Address = {
 export default function Index() {
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [activeTab, setActiveTab] = useState("map");
-  const [showQuickMode, setShowQuickMode] = useState(false);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -32,10 +30,6 @@ export default function Index() {
     }
   }, [user, loading, navigate]);
 
-  if (showQuickMode) {
-    return <QuickDistributionMode onClose={() => setShowQuickMode(false)} />;
-  }
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header mobile-optimized */}
@@ -44,14 +38,6 @@ export default function Index() {
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-base sm:text-xl font-bold truncate">Distribution Calendriers</h1>
             <div className="flex gap-2">
-              <Button 
-                onClick={() => setShowQuickMode(true)} 
-                size="sm" 
-                className="h-9 px-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-              >
-                <Zap className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Distribution rapide</span>
-              </Button>
               <Button onClick={() => navigate("/admin")} size="sm" variant="outline" className="h-9 px-3">
                 <Settings className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Paramètres</span>

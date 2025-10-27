@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
-import { Navigation, Lasso, X, Trash2, MapPin, Layers, Route, Hexagon, Maximize } from "lucide-react";
+import { Navigation, Lasso, X, Trash2, MapPin, Layers, Route, Hexagon, Maximize, Navigation2 } from "lucide-react";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import AddAddressDialog from "./AddAddressDialog";
@@ -1105,6 +1105,47 @@ export default function MapView() {
           title="Ma position"
         >
           <Navigation className={`h-5 w-5 ${isLocating ? "animate-pulse" : ""}`} />
+        </Button>
+        <Button
+          onClick={() => {
+            if (!userLocation || addresses.length === 0) {
+              toast.error("Aucune position GPS disponible");
+              return;
+            }
+            
+            // Find closest address
+            let minDistance = Infinity;
+            let closestAddress: Address | null = null;
+            
+            addresses.forEach(addr => {
+              const distance = Math.sqrt(
+                Math.pow(addr.latitude - userLocation[0], 2) + 
+                Math.pow(addr.longitude - userLocation[1], 2)
+              );
+              if (distance < minDistance) {
+                minDistance = distance;
+                closestAddress = addr;
+              }
+            });
+            
+            if (closestAddress && mapRef.current) {
+              // Center on address
+              mapRef.current.setView([closestAddress.latitude, closestAddress.longitude], 18);
+              
+              // Open popup
+              const marker = markersMapRef.current[closestAddress.id];
+              if (marker) {
+                marker.openPopup();
+                toast.success("Adresse la plus proche trouvée");
+              }
+            }
+          }}
+          size="icon"
+          variant="default"
+          className="h-14 w-14 rounded-full shadow-xl bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 touch-manipulation"
+          title="Adresse la plus proche"
+        >
+          <Navigation2 className="h-6 w-6" />
         </Button>
         <Button
           onClick={() => {

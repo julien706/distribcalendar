@@ -18,7 +18,7 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
 }));
 
 export function createPopupContent(
-  address: Address,
+  address: Address & { csv_data?: { commune_nom?: string } },
   onStatusChange: (id: string, newStatus: string) => void,
   latitude: number,
   longitude: number
@@ -33,10 +33,20 @@ export function createPopupContent(
   const title = document.createElement("strong");
   title.style.fontSize = "16px";
   title.style.display = "block";
-  title.style.marginBottom = "12px";
+  title.style.marginBottom = "4px";
   title.style.fontWeight = "600";
   title.textContent = `${address.street_number || ""} ${address.street_name}`;
   container.appendChild(title);
+
+  // City
+  if (address.csv_data?.commune_nom) {
+    const cityDiv = document.createElement("div");
+    cityDiv.style.fontSize = "13px";
+    cityDiv.style.color = "#6b7280";
+    cityDiv.style.marginBottom = "12px";
+    cityDiv.textContent = address.csv_data.commune_nom;
+    container.appendChild(cityDiv);
+  }
 
   // Status label
   const statusLabel = document.createElement("div");
