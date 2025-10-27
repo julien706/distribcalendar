@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
-import { Navigation, Lasso, X, Trash2, MapPin, Layers, Route, Hexagon } from "lucide-react";
+import { Navigation, Lasso, X, Trash2, MapPin, Layers, Route, Hexagon, Maximize } from "lucide-react";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import AddAddressDialog from "./AddAddressDialog";
@@ -109,7 +109,7 @@ export default function MapView() {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Create map with increased zoom
+    // Create map with increased zoom - will be adjusted after geolocation
     const map = L.map(mapContainerRef.current, {
       maxZoom: 22,
       minZoom: 3,
@@ -169,6 +169,45 @@ export default function MapView() {
     const zonesLayer = new L.FeatureGroup();
     map.addLayer(zonesLayer);
     zonesLayerRef.current = zonesLayer;
+
+    // Auto-locate user on startup
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          map.setView([latitude, longitude], 18);
+          setUserLocation([latitude, longitude]);
+          
+          // Create custom blue marker for user location
+          const userIcon = L.divIcon({
+            className: "user-location-marker",
+            html: `<div style="
+              width: 16px;
+              height: 16px;
+              background-color: #3b82f6;
+              border: 3px solid white;
+              border-radius: 50%;
+              box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+            "></div>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8],
+          });
+
+          const marker = L.marker([latitude, longitude], { icon: userIcon })
+            .bindPopup("<strong>Votre position</strong>")
+            .addTo(map);
+          userLocationMarkerRef.current = marker;
+        },
+        (error) => {
+          console.log("Geolocation on startup failed, using default location", error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0,
+        }
+      );
+    }
 
     return () => {
       if (drawControlRef.current) {
@@ -915,7 +954,7 @@ export default function MapView() {
 
       // Bind popup with interactive content only when not in lasso mode and not in add mode
       if (!lassoMode && !addMode) {
-        const popupContent = createPopupContent(address, handleStatusChange);
+        const popupContent = createPopupContent(address, handleStatusChange, address.latitude, address.longitude);
         marker.bindPopup(popupContent, {
           maxWidth: 300,
           className: "custom-popup",
@@ -978,7 +1017,7 @@ export default function MapView() {
       <div ref={mapContainerRef} className="absolute inset-0" />
       
       {/* Control Buttons - Mobile optimized */}
-      <div className="absolute bottom-4 right-3 z-[12000] pointer-events-auto flex flex-col gap-2 sm:gap-3 items-end">
+      <div className="absolute bottom-20 right-3 z-[12000] pointer-events-auto flex flex-col gap-2 sm:gap-3 items-end">
         {selectedAddresses.length > 0 && (
           <Button
             onClick={() => setShowDeleteDialog(true)}
@@ -1066,6 +1105,20 @@ export default function MapView() {
           title="Ma position"
         >
           <Navigation className={`h-5 w-5 ${isLocating ? "animate-pulse" : ""}`} />
+        </Button>
+        <Button
+          onClick={() => {
+            if (!mapRef.current || addresses.length === 0) return;
+            const bounds = L.latLngBounds(addresses.map(addr => [addr.latitude, addr.longitude]));
+            mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+            toast.success("Vue d'ensemble du secteur");
+          }}
+          size="icon"
+          variant="outline"
+          className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
+          title="Vue d'ensemble du secteur"
+        >
+          <Maximize className="h-5 w-5" />
         </Button>
       </div>
 

@@ -19,7 +19,9 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
 
 export function createPopupContent(
   address: Address,
-  onStatusChange: (id: string, newStatus: string) => void
+  onStatusChange: (id: string, newStatus: string) => void,
+  latitude: number,
+  longitude: number
 ) {
   const container = document.createElement("div");
   container.className = "map-popup-container";
@@ -184,6 +186,43 @@ export function createPopupContent(
 
   obsContainer.appendChild(obsTextarea);
   container.appendChild(obsContainer);
+
+  // Navigation button
+  const navContainer = document.createElement("div");
+  navContainer.style.marginTop = "12px";
+  navContainer.style.paddingTop = "12px";
+  navContainer.style.borderTop = "1px solid #e5e7eb";
+
+  const navButton = document.createElement("a");
+  navButton.href = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+  navButton.target = "_blank";
+  navButton.rel = "noopener noreferrer";
+  navButton.style.display = "flex";
+  navButton.style.alignItems = "center";
+  navButton.style.justifyContent = "center";
+  navButton.style.gap = "8px";
+  navButton.style.width = "100%";
+  navButton.style.padding = "10px 16px";
+  navButton.style.backgroundColor = "#3b82f6";
+  navButton.style.color = "white";
+  navButton.style.borderRadius = "6px";
+  navButton.style.textDecoration = "none";
+  navButton.style.fontSize = "14px";
+  navButton.style.fontWeight = "500";
+  navButton.style.cursor = "pointer";
+  navButton.style.transition = "background-color 0.2s";
+  navButton.textContent = "📍 Naviguer vers";
+
+  navButton.addEventListener("mouseenter", () => {
+    navButton.style.backgroundColor = "#2563eb";
+  });
+
+  navButton.addEventListener("mouseleave", () => {
+    navButton.style.backgroundColor = "#3b82f6";
+  });
+
+  navContainer.appendChild(navButton);
+  container.appendChild(navContainer);
 
   // History section
   const historyContainer = document.createElement("div");
