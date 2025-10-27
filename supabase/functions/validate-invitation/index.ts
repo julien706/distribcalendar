@@ -10,6 +10,11 @@ interface ValidateInvitationRequest {
   code: string;
 }
 
+// Rate limiting: Track attempts per IP
+const attemptsByIP = new Map<string, number[]>();
+const MAX_ATTEMPTS = 5;
+const WINDOW_MS = 60000; // 1 minute
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -17,6 +22,44 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Rate limiting check
+    const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown';
+    const now = Date.now();
+    
+    // Get recent attempts for this IP
+    const attempts = attemptsByIP.get(clientIP) || [];
+    const recentAttempts = attempts.filter(timestamp => now - timestamp < WINDOW_MS);
+    
+    if (recentAttempts.length >= MAX_ATTEMPTS) {
+      console.warn(`Rate limit exceeded for IP: ${clientIP}`);
+      return new Response(
+        JSON.stringify({ valid: false, error: "Trop de tentatives. Veuillez réessayer dans 1 minute." }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+    
+    // Record this attempt
+    recentAttempts.push(now);
+    attemptsByIP.set(clientIP, recentAttempts);
+    
+    // Clean up old entries periodically (keep map from growing infinitely)
+    if (attemptsByIP.size > 1000) {
+      const cutoff = now - WINDOW_MS;
+      for (const [ip, timestamps] of attemptsByIP.entries()) {
+        const recent = timestamps.filter(t => t > cutoff);
+        if (recent.length === 0) {
+          attemptsByIP.delete(ip);
+        } else {
+          attemptsByIP.set(ip, recent);
+        }
+      }
+    }
+
     const { code }: ValidateInvitationRequest = await req.json();
 
     if (!code) {

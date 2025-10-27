@@ -73,7 +73,9 @@ export default function CSVImporter({
         }
         
         if (columnMapping.observations && row[columnMapping.observations]) {
-          transformedRow.observations = row[columnMapping.observations];
+          // Sanitize observations to prevent XSS - strip HTML tags
+          const rawObs = String(row[columnMapping.observations]);
+          transformedRow.observations = rawObs.replace(/<[^>]*>/g, '').trim();
         }
         
         // Validate with Zod

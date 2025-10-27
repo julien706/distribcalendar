@@ -357,13 +357,25 @@ export function createPopupContent(
           dateDiv.textContent = date;
           entryDiv.appendChild(dateDiv);
 
+          // Create change display safely without innerHTML to prevent XSS
           const changeDiv = document.createElement("div");
           changeDiv.style.color = "#6b7280";
-          changeDiv.innerHTML = `
-            <span style="color: ${oldStatusConfig?.color || "#6b7280"}">${oldStatusConfig?.label || entry.old_status}</span>
-            <span style="margin: 0 4px;">→</span>
-            <span style="color: ${newStatusConfig?.color || "#6b7280"}">${newStatusConfig?.label || entry.new_status}</span>
-          `;
+          
+          const oldSpan = document.createElement("span");
+          oldSpan.style.color = oldStatusConfig?.color || "#6b7280";
+          oldSpan.textContent = oldStatusConfig?.label || entry.old_status;
+          
+          const arrowSpan = document.createElement("span");
+          arrowSpan.style.margin = "0 4px";
+          arrowSpan.textContent = "→";
+          
+          const newSpan = document.createElement("span");
+          newSpan.style.color = newStatusConfig?.color || "#6b7280";
+          newSpan.textContent = newStatusConfig?.label || entry.new_status;
+          
+          changeDiv.appendChild(oldSpan);
+          changeDiv.appendChild(arrowSpan);
+          changeDiv.appendChild(newSpan);
           entryDiv.appendChild(changeDiv);
 
           if (entry.new_observations && entry.new_observations !== entry.old_observations) {
