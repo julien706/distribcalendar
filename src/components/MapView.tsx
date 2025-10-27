@@ -3,6 +3,9 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import "leaflet-draw";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import "leaflet.markercluster";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPopupContent } from "./MapPopup";
@@ -56,6 +59,7 @@ export default function MapView() {
   const drawControlRef = useRef<L.Control.Draw | null>(null);
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
   const markersMapRef = useRef<Record<string, L.Marker>>({});
+  const markerClusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusType[]>(() => {
     // Initialize with all statuses selected
@@ -109,10 +113,11 @@ export default function MapView() {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Create map with increased zoom - will be adjusted after geolocation
+    // Create map with increased zoom and canvas rendering for better performance
     const map = L.map(mapContainerRef.current, {
       maxZoom: 22,
       minZoom: 3,
+      preferCanvas: true,
     }).setView([49.048, 4.122], 16);
 
     // Create all tile layers
@@ -829,10 +834,24 @@ export default function MapView() {
       container.style.cursor = "";
     }
 
-    // Clear existing markers
+    // Clear existing markers and cluster
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
     markersMapRef.current = {};
+    
+    // Remove old cluster if exists
+    if (markerClusterRef.current) {
+      mapRef.current.removeLayer(markerClusterRef.current);
+    }
+    
+    // Create new marker cluster group
+    markerClusterRef.current = L.markerClusterGroup({
+      chunkedLoading: true,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      maxClusterRadius: 50,
+    });
 
     // Filter addresses based on selected statuses
     const filteredAddresses = addresses.filter((address) =>
@@ -887,8 +906,7 @@ export default function MapView() {
       };
 
       // Create marker
-      const marker = L.marker([address.latitude, address.longitude], { icon })
-        .addTo(mapRef.current!);
+      const marker = L.marker([address.latitude, address.longitude], { icon });
 
       // Click behavior: move in add mode for manual entries, select in lasso mode
       marker.on('click', (e: any) => {
@@ -952,10 +970,13 @@ export default function MapView() {
       marker.on('contextmenu', openEdit);
       marker.on('dblclick', openEdit);
 
-      // Bind popup with interactive content only when not in lasso mode and not in add mode
+      // Lazy load popup with interactive content only when clicked (not in lasso/add mode)
       if (!lassoMode && !addMode) {
-        const popupContent = createPopupContent(address, handleStatusChange, address.latitude, address.longitude);
-        marker.bindPopup(popupContent, {
+        marker.on('popupopen', () => {
+          const popupContent = createPopupContent(address, handleStatusChange, address.latitude, address.longitude);
+          marker.setPopupContent(popupContent);
+        });
+        marker.bindPopup('', {
           maxWidth: 300,
           className: "custom-popup",
         });
@@ -964,9 +985,17 @@ export default function MapView() {
       markersRef.current.push(marker);
       markersMapRef.current[address.id] = marker;
       bounds.push([address.latitude, address.longitude]);
+      
+      // Add to cluster
+      markerClusterRef.current!.addLayer(marker);
     });
 
-      // Fit map to markers
+    // Add cluster to map
+    if (markerClusterRef.current) {
+      mapRef.current.addLayer(markerClusterRef.current);
+    }
+
+    // Fit map to markers
     if (bounds.length > 0) {
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
@@ -1015,6 +1044,51 @@ export default function MapView() {
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainerRef} className="absolute inset-0" />
+      
+      {/* Closest Address Button - Bottom Left */}
+      <div className="absolute bottom-20 left-3 z-[12000] pointer-events-auto">
+        <Button
+          onClick={() => {
+            if (!userLocation || addresses.length === 0) {
+              toast.error("Aucune position GPS disponible");
+              return;
+            }
+            
+            // Find closest address
+            let minDistance = Infinity;
+            let closestAddress: Address | null = null;
+            
+            addresses.forEach(addr => {
+              const distance = Math.sqrt(
+                Math.pow(addr.latitude - userLocation[0], 2) + 
+                Math.pow(addr.longitude - userLocation[1], 2)
+              );
+              if (distance < minDistance) {
+                minDistance = distance;
+                closestAddress = addr;
+              }
+            });
+            
+            if (closestAddress && mapRef.current) {
+              // Center on address
+              mapRef.current.setView([closestAddress.latitude, closestAddress.longitude], 18);
+              
+              // Open popup
+              const marker = markersMapRef.current[closestAddress.id];
+              if (marker) {
+                marker.openPopup();
+                toast.success("Adresse la plus proche trouvée");
+              }
+            }
+          }}
+          size="icon"
+          variant="default"
+          className="h-16 w-16 rounded-full shadow-2xl bg-gradient-to-br from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 touch-manipulation"
+          title="Adresse la plus proche"
+        >
+          <Target className="h-7 w-7" />
+        </Button>
+      </div>
       
       {/* Control Buttons - Mobile optimized */}
       <div className="absolute bottom-20 right-3 z-[12000] pointer-events-auto flex flex-col gap-2 sm:gap-3 items-end">
@@ -1097,47 +1171,6 @@ export default function MapView() {
             )}
           </Button>
         )}
-        <Button
-          onClick={() => {
-            if (!userLocation || addresses.length === 0) {
-              toast.error("Aucune position GPS disponible");
-              return;
-            }
-            
-            // Find closest address
-            let minDistance = Infinity;
-            let closestAddress: Address | null = null;
-            
-            addresses.forEach(addr => {
-              const distance = Math.sqrt(
-                Math.pow(addr.latitude - userLocation[0], 2) + 
-                Math.pow(addr.longitude - userLocation[1], 2)
-              );
-              if (distance < minDistance) {
-                minDistance = distance;
-                closestAddress = addr;
-              }
-            });
-            
-            if (closestAddress && mapRef.current) {
-              // Center on address
-              mapRef.current.setView([closestAddress.latitude, closestAddress.longitude], 18);
-              
-              // Open popup
-              const marker = markersMapRef.current[closestAddress.id];
-              if (marker) {
-                marker.openPopup();
-                toast.success("Adresse la plus proche trouvée");
-              }
-            }
-          }}
-          size="icon"
-          variant="default"
-          className="h-14 w-14 rounded-full shadow-xl bg-gradient-to-br from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 touch-manipulation"
-          title="Adresse la plus proche"
-        >
-          <Target className="h-6 w-6" />
-        </Button>
         <Button
           onClick={handleGeolocate}
           disabled={isLocating}
