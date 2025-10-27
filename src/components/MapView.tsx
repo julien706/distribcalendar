@@ -900,8 +900,8 @@ export default function MapView() {
       const color = statusConfig.color;
       const isSelected = selectedAddresses.includes(address.id);
       
-      // Determine if this is a manually added address (no csv_data or empty csv_data)
-      const isManuallyAdded = !address.csv_data || (typeof address.csv_data === 'object' && Object.keys(address.csv_data).length === 0);
+      // Determine if this is a manually added address (no csv_data or no imported flag)
+      const isManuallyAdded = !address.csv_data || !address.csv_data.imported;
       const textColor = getContrastingTextColor(color);
       
       // Create custom icon with selection ring

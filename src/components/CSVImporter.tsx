@@ -61,7 +61,7 @@ export default function CSVImporter({
           latitude: parseFloat(String(row[columnMapping.latitude] || "0").replace(',', '.')),
           longitude: parseFloat(String(row[columnMapping.longitude] || "0").replace(',', '.')),
           status: "pending" as const,
-          csv_data: {},
+          csv_data: { imported: true },
         };
         
         if (columnMapping.street_number && row[columnMapping.street_number]) {
@@ -211,6 +211,7 @@ export default function CSVImporter({
                   longitude: lng,
                   status: "pending" as const,
                   csv_data: {
+                    imported: true,
                     commune_nom: row.commune_nom,
                     voie_nom: row.voie_nom,
                     numero: row.numero,
