@@ -1036,11 +1036,6 @@ export default function MapView() {
     if (markerClusterRef.current) {
       mapRef.current.addLayer(markerClusterRef.current);
     }
-
-    // Fit map to markers
-    if (bounds.length > 0) {
-      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-    }
   }, [filteredAddresses, lassoMode, addMode, showNumbers]);
 
   // Update marker visuals when selection changes
