@@ -5,11 +5,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Shield, Users as UsersIcon, Plus, X } from "lucide-react";
+import { Shield, Users as UsersIcon, Plus, X, CheckCircle, XCircle, Trash2, KeyRound, AlertCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Profile {
   id: string;
   email: string;
+  is_active: boolean;
 }
 
 interface UserRole {
@@ -46,6 +58,7 @@ export default function UserManagement() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [addingTeamForUser, setAddingTeamForUser] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -58,7 +71,8 @@ export default function UserManagement() {
       // Fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, email")
+        .select("id, email, is_active")
+        .order("is_active", { ascending: true })
         .order("email");
 
       if (profilesError) throw profilesError;
@@ -173,29 +187,131 @@ export default function UserManagement() {
     }
   };
 
+  const handleToggleActive = async (userId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_active: !currentStatus })
+        .eq("id", userId);
+
+      if (error) throw error;
+
+      toast.success(currentStatus ? "Utilisateur désactivé" : "Utilisateur activé");
+      fetchData();
+    } catch (error: any) {
+      console.error("Error toggling active status:", error);
+      toast.error("Erreur lors de la mise à jour du statut");
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      // Delete from auth.users will cascade to profiles and other tables
+      const { error } = await supabase.auth.admin.deleteUser(userId);
+
+      if (error) throw error;
+
+      toast.success("Utilisateur supprimé");
+      setUserToDelete(null);
+      fetchData();
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      toast.error("Erreur lors de la suppression de l'utilisateur");
+    }
+  };
+
+  const handleResetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/`,
+      });
+
+      if (error) throw error;
+
+      toast.success("Email de réinitialisation envoyé");
+    } catch (error: any) {
+      console.error("Error resetting password:", error);
+      toast.error("Erreur lors de l'envoi de l'email");
+    }
+  };
+
+  const pendingUsers = users.filter(u => !u.profile.is_active);
+  const activeUsers = users.filter(u => u.profile.is_active);
+
   if (loading) {
     return <div className="text-center py-8">Chargement...</div>;
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <UsersIcon className="h-5 w-5" />
-          Gestion des utilisateurs
-        </CardTitle>
-        <CardDescription>
-          Gérer les rôles et les affectations d'équipe (plusieurs équipes possibles)
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {users.map((userData) => (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UsersIcon className="h-5 w-5" />
+            Gestion des utilisateurs
+          </CardTitle>
+          <CardDescription>
+            Gérer les rôles, les affectations d'équipe et valider les inscriptions
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {pendingUsers.length > 0 && (
+            <div className="space-y-3">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>{pendingUsers.length}</strong> utilisateur(s) en attente de validation
+                </AlertDescription>
+              </Alert>
+              
+              {pendingUsers.map((userData) => (
+                <div key={userData.profile.id} className="p-4 border border-orange-500/50 rounded-lg space-y-3 bg-orange-50/50">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{userData.profile.email}</p>
+                      <Badge variant="outline" className="mt-1 border-orange-500">
+                        <XCircle className="h-3 w-3 mr-1" />
+                        En attente de validation
+                      </Badge>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleToggleActive(userData.profile.id, userData.profile.is_active)}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Approuver
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setUserToDelete(userData.profile.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {activeUsers.length > 0 && (
+              <h3 className="text-sm font-medium text-muted-foreground">Utilisateurs actifs</h3>
+            )}
+            {activeUsers.map((userData) => (
             <div key={userData.profile.id} className="p-4 border rounded-lg space-y-3">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{userData.profile.email}</p>
-                  <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">{userData.profile.email}</p>
+                    <Badge variant="outline" className="border-green-500">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Actif
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
                     {userData.role && (
                       <Badge variant={userData.role.role === "admin" ? "default" : "secondary"}>
                         <Shield className="h-3 w-3 mr-1" />
@@ -204,18 +320,46 @@ export default function UserManagement() {
                     )}
                   </div>
                 </div>
-                <Select
-                  value={userData.role?.role || "user"}
-                  onValueChange={(value) => handleRoleChange(userData.profile.id, value as "admin" | "user")}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">Utilisateur</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex flex-col gap-2">
+                  <Select
+                    value={userData.role?.role || "user"}
+                    onValueChange={(value) => handleRoleChange(userData.profile.id, value as "admin" | "user")}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">Utilisateur</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleToggleActive(userData.profile.id, userData.profile.is_active)}
+                      title="Désactiver l'utilisateur"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleResetPassword(userData.profile.email)}
+                      title="Réinitialiser le mot de passe"
+                    >
+                      <KeyRound className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => setUserToDelete(userData.profile.id)}
+                      title="Supprimer l'utilisateur"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               {/* Display all teams for this user */}
@@ -294,8 +438,30 @@ export default function UserManagement() {
               </div>
             </div>
           ))}
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={userToDelete !== null} onOpenChange={() => setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.
+              Toutes les données associées (rôles, affectations d'équipe) seront également supprimées.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => userToDelete && handleDeleteUser(userToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
