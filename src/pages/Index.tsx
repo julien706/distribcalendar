@@ -33,9 +33,9 @@ export default function Index() {
   }, [user, loading, navigate]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header mobile-optimized */}
-      <header className="border-b sticky top-0 z-[11000] bg-background/95 backdrop-blur">
+      <header className="border-b sticky top-0 z-50 bg-background/95 backdrop-blur">
         <div className="px-3 py-2 sm:px-4 sm:py-3">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-base sm:text-xl font-bold truncate">Distribution Calendriers</h1>
@@ -51,8 +51,8 @@ export default function Index() {
       </header>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <TabsList className="w-full rounded-none border-b h-auto p-0 bg-transparent">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+        <TabsList className="w-full rounded-none border-b h-auto p-0 bg-background sticky top-0 z-40">
           <TabsTrigger 
             value="map" 
             className="flex-1 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary h-12 sm:h-14 gap-2"
@@ -73,7 +73,7 @@ export default function Index() {
           value="map" 
           className="flex-1 relative min-h-0 m-0 animate-fade-in"
         >
-          <div className="absolute inset-0">
+          <div className="h-full w-full">
             <Suspense fallback={
               <div className="flex items-center justify-center h-full">
                 <div className="animate-pulse text-muted-foreground">Chargement de la carte...</div>
