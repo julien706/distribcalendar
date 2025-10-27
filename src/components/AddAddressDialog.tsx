@@ -25,17 +25,44 @@ export default function AddAddressDialog({
 }: AddAddressDialogProps) {
   const [streetName, setStreetName] = useState("");
   const [streetNumber, setStreetNumber] = useState("");
+  const [city, setCity] = useState("");
   const [observations, setObservations] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingCity, setLoadingCity] = useState(false);
 
-  // Reset form when dialog opens
+  // Reset form and fetch city when dialog opens
   useEffect(() => {
     if (open) {
       console.log("Dialog opened with coords:", latitude, longitude);
       setStreetName("");
       setStreetNumber("");
+      setCity("");
       setObservations("");
       setLoading(false);
+      
+      // Fetch city from coordinates using reverse geocoding
+      const fetchCity = async () => {
+        setLoadingCity(true);
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+            {
+              headers: {
+                'User-Agent': 'AddressDistributionApp/1.0'
+              }
+            }
+          );
+          const data = await response.json();
+          const cityName = data.address?.city || data.address?.town || data.address?.village || data.address?.municipality || "";
+          setCity(cityName);
+        } catch (error) {
+          console.error("Error fetching city:", error);
+        } finally {
+          setLoadingCity(false);
+        }
+      };
+      
+      fetchCity();
     }
   }, [open, latitude, longitude]);
 
@@ -46,6 +73,7 @@ export default function AddAddressDialog({
     const result = addressSchema.safeParse({
       street_name: streetName,
       street_number: streetNumber || undefined,
+      city: city || undefined,
       latitude,
       longitude,
       observations: observations || undefined,
@@ -63,6 +91,7 @@ export default function AddAddressDialog({
       const { error } = await supabase.from("addresses").insert({
         street_name: result.data.street_name,
         street_number: result.data.street_number || null,
+        city: result.data.city || null,
         latitude: result.data.latitude,
         longitude: result.data.longitude,
         status: result.data.status,
@@ -110,6 +139,16 @@ export default function AddAddressDialog({
               value={streetNumber}
               onChange={(e) => setStreetNumber(e.target.value)}
               placeholder="42"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="city">Ville</Label>
+            <Input
+              id="city"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder={loadingCity ? "Chargement..." : "Ville"}
+              disabled={loadingCity}
             />
           </div>
           <div className="space-y-2">
