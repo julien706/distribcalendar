@@ -443,8 +443,12 @@ export default function MapView() {
     if (lassoMode) toggleLassoMode();
     if (addMode) toggleAddMode();
 
+    setEditingZone(zone);
     setEditingZoneShape(true);
     setShowEditZone(false);
+
+    // Hide all existing zones temporarily
+    zonesLayerRef.current?.clearLayers();
 
     // Convert zone boundary to LatLng format
     const latlngs: [number, number][] = zone.boundary_coordinates.map(coord => [coord[1], coord[0]]);
@@ -460,7 +464,7 @@ export default function MapView() {
     polygon.addTo(drawnItemsRef.current);
     editingZoneLayerRef.current = polygon;
 
-    // Enable editing
+    // Enable editing with leaflet-draw
     const drawControl = new L.Control.Draw({
       draw: {
         polygon: false,
@@ -524,6 +528,13 @@ export default function MapView() {
 
     setEditingZoneShape(false);
     setEditingZone(null);
+    
+    // Restore zones visibility if enabled
+    if (showZones) {
+      // Trigger zones re-render
+      const currentZones = zones;
+      setZones([...currentZones]);
+    }
   };
 
   const isPointInPolygon = (point: L.LatLng, polygon: L.LatLng[]) => {
