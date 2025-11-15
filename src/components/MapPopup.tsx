@@ -29,9 +29,11 @@ export async function createPopupContent(
 ) {
   const container = document.createElement("div");
   container.className = "map-popup-container";
-  container.style.padding = "12px";
+  container.style.padding = "10px";
   container.style.minWidth = "240px";
   container.style.maxWidth = "260px";
+  container.style.maxHeight = "400px";
+  container.style.overflowY = "auto";
 
   // Title
   const title = document.createElement("strong");
@@ -106,21 +108,21 @@ export async function createPopupContent(
       // Content (collapsible)
       const aptContentDiv = document.createElement("div");
       aptContentDiv.style.display = "none";
-      aptContentDiv.style.maxHeight = "200px";
+      aptContentDiv.style.maxHeight = "150px";
       aptContentDiv.style.overflowY = "auto";
-      aptContentDiv.style.padding = "8px";
+      aptContentDiv.style.padding = "6px";
       aptContentDiv.style.backgroundColor = "#ffffff";
       
       apartments.forEach((apt, index) => {
         const aptItemDiv = document.createElement("div");
-        aptItemDiv.style.padding = "6px 8px";
+        aptItemDiv.style.padding = "4px 6px";
         aptItemDiv.style.borderRadius = "4px";
         aptItemDiv.style.backgroundColor = "#f9fafb";
-        aptItemDiv.style.marginBottom = index < apartments.length - 1 ? "6px" : "0";
+        aptItemDiv.style.marginBottom = index < apartments.length - 1 ? "4px" : "0";
         aptItemDiv.style.display = "flex";
         aptItemDiv.style.justifyContent = "space-between";
         aptItemDiv.style.alignItems = "flex-start";
-        aptItemDiv.style.gap = "8px";
+        aptItemDiv.style.gap = "6px";
         
         // Left content
         const aptContentDiv = document.createElement("div");
@@ -304,7 +306,7 @@ export async function createPopupContent(
     // Form content (collapsible)
     const formContent = document.createElement("div");
     formContent.style.display = "none";
-    formContent.style.padding = "12px";
+    formContent.style.padding = "8px";
     formContent.style.backgroundColor = "#ffffff";
     
     // Name input
@@ -320,11 +322,11 @@ export async function createPopupContent(
     nameInput.type = "text";
     nameInput.placeholder = "Ex: Appt 1, Porte gauche...";
     nameInput.style.width = "100%";
-    nameInput.style.padding = "6px 8px";
-    nameInput.style.fontSize = "12px";
+    nameInput.style.padding = "5px 6px";
+    nameInput.style.fontSize = "11px";
     nameInput.style.border = "1px solid #d1d5db";
     nameInput.style.borderRadius = "4px";
-    nameInput.style.marginBottom = "10px";
+    nameInput.style.marginBottom = "8px";
     
     // Status select
     const statusLabel = document.createElement("label");
@@ -337,11 +339,11 @@ export async function createPopupContent(
     
     const statusSelect = document.createElement("select");
     statusSelect.style.width = "100%";
-    statusSelect.style.padding = "6px 8px";
-    statusSelect.style.fontSize = "12px";
+    statusSelect.style.padding = "5px 6px";
+    statusSelect.style.fontSize = "11px";
     statusSelect.style.border = "1px solid #d1d5db";
     statusSelect.style.borderRadius = "4px";
-    statusSelect.style.marginBottom = "10px";
+    statusSelect.style.marginBottom = "8px";
     
     STATUS_OPTIONS.forEach(option => {
       const optionEl = document.createElement("option");
@@ -362,12 +364,12 @@ export async function createPopupContent(
     const obsTextarea = document.createElement("textarea");
     obsTextarea.placeholder = "Notes...";
     obsTextarea.style.width = "100%";
-    obsTextarea.style.padding = "6px 8px";
-    obsTextarea.style.fontSize = "12px";
+    obsTextarea.style.padding = "5px 6px";
+    obsTextarea.style.fontSize = "11px";
     obsTextarea.style.border = "1px solid #d1d5db";
     obsTextarea.style.borderRadius = "4px";
-    obsTextarea.style.marginBottom = "10px";
-    obsTextarea.style.minHeight = "60px";
+    obsTextarea.style.marginBottom = "8px";
+    obsTextarea.style.minHeight = "50px";
     obsTextarea.style.resize = "vertical";
     obsTextarea.style.fontFamily = "inherit";
     
