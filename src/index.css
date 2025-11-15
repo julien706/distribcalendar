@@ -43,7 +43,7 @@ All colors MUST be HSL.
     --status-done: 142 76% 36%;
     --status-retry: 38 92% 50%;
     --status-refused: 0 84% 60%;
-    --status-uninhabited: 240 5% 65%;
+    --status-uninhabited: 0 0% 0%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -89,7 +89,7 @@ All colors MUST be HSL.
     --status-done: 142 70% 45%;
     --status-retry: 38 92% 60%;
     --status-refused: 0 84% 60%;
-    --status-uninhabited: 240 5% 45%;
+    --status-uninhabited: 0 0% 15%;
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
