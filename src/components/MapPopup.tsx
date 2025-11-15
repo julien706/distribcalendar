@@ -25,7 +25,8 @@ export async function createPopupContent(
   address: Address & { csv_data?: { commune_nom?: string } },
   onStatusChange: (id: string, newStatus: string) => void,
   latitude: number,
-  longitude: number
+  longitude: number,
+  onManageApartments?: () => void
 ) {
   const container = document.createElement("div");
   container.className = "map-popup-container";
@@ -167,83 +168,7 @@ export async function createPopupContent(
           aptContentDiv.appendChild(aptObsDiv);
         }
         
-        // Right actions
-        const actionsDiv = document.createElement("div");
-        actionsDiv.style.display = "flex";
-        actionsDiv.style.gap = "4px";
-        actionsDiv.style.flexShrink = "0";
-        
-        // Edit button
-        const editBtn = document.createElement("button");
-        editBtn.textContent = "✏️";
-        editBtn.style.padding = "4px 6px";
-        editBtn.style.fontSize = "12px";
-        editBtn.style.border = "1px solid #d1d5db";
-        editBtn.style.borderRadius = "4px";
-        editBtn.style.backgroundColor = "#ffffff";
-        editBtn.style.cursor = "pointer";
-        editBtn.style.transition = "all 0.2s";
-        editBtn.addEventListener("mouseenter", () => {
-          editBtn.style.backgroundColor = "#f3f4f6";
-        });
-        editBtn.addEventListener("mouseleave", () => {
-          editBtn.style.backgroundColor = "#ffffff";
-        });
-        editBtn.addEventListener("click", async () => {
-          const newStatus = prompt(`Modifier le statut de "${apt.name}":\n\nOptions:\n- pending\n- done\n- retry_first\n- retry_second\n- refused\n- uninhabited\n- no_answer\n\nStatut actuel: ${apt.status}`, apt.status);
-          if (newStatus && newStatus !== apt.status && STATUS_CONFIG[newStatus as keyof typeof STATUS_CONFIG]) {
-            const { error } = await supabase
-              .from("apartments")
-              .update({ status: newStatus as keyof typeof STATUS_CONFIG })
-              .eq("id", apt.id);
-            
-            if (error) {
-              toast.error("Erreur lors de la modification");
-            } else {
-              toast.success("Appartement modifié");
-              setTimeout(() => window.location.reload(), 600);
-            }
-          }
-        });
-        
-        // Delete button
-        const deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "🗑️";
-        deleteBtn.style.padding = "4px 6px";
-        deleteBtn.style.fontSize = "12px";
-        deleteBtn.style.border = "1px solid #fecaca";
-        deleteBtn.style.borderRadius = "4px";
-        deleteBtn.style.backgroundColor = "#fef2f2";
-        deleteBtn.style.color = "#dc2626";
-        deleteBtn.style.cursor = "pointer";
-        deleteBtn.style.transition = "all 0.2s";
-        deleteBtn.addEventListener("mouseenter", () => {
-          deleteBtn.style.backgroundColor = "#fee2e2";
-        });
-        deleteBtn.addEventListener("mouseleave", () => {
-          deleteBtn.style.backgroundColor = "#fef2f2";
-        });
-        deleteBtn.addEventListener("click", async () => {
-          if (confirm(`Supprimer l'appartement "${apt.name}" ?\n\nCette action est irréversible.`)) {
-            const { error } = await supabase
-              .from("apartments")
-              .delete()
-              .eq("id", apt.id);
-            
-            if (error) {
-              toast.error("Erreur lors de la suppression");
-            } else {
-              toast.success("Appartement supprimé");
-              setTimeout(() => window.location.reload(), 600);
-            }
-          }
-        });
-        
-        actionsDiv.appendChild(editBtn);
-        actionsDiv.appendChild(deleteBtn);
-        
         aptItemDiv.appendChild(aptContentDiv);
-        aptItemDiv.appendChild(actionsDiv);
         aptContentDiv.appendChild(aptItemDiv);
       });
       
@@ -273,180 +198,37 @@ export async function createPopupContent(
       container.appendChild(emptyDiv);
     }
     
-    // Add apartment form (collapsible)
-    const addFormContainer = document.createElement("div");
-    addFormContainer.style.marginTop = "8px";
-    addFormContainer.style.marginBottom = "8px";
-    addFormContainer.style.border = "1px solid #d1d5db";
-    addFormContainer.style.borderRadius = "6px";
-    addFormContainer.style.overflow = "hidden";
-    
-    // Header (collapsible)
-    const addFormHeader = document.createElement("div");
-    addFormHeader.style.fontSize = "12px";
-    addFormHeader.style.fontWeight = "600";
-    addFormHeader.style.padding = "8px";
-    addFormHeader.style.backgroundColor = "#f0fdf4";
-    addFormHeader.style.cursor = "pointer";
-    addFormHeader.style.display = "flex";
-    addFormHeader.style.justifyContent = "space-between";
-    addFormHeader.style.alignItems = "center";
-    addFormHeader.style.userSelect = "none";
-    addFormHeader.style.color = "#059669";
-    
-    const addFormHeaderText = document.createElement("span");
-    addFormHeaderText.textContent = "➕ Ajouter un appartement";
-    addFormHeader.appendChild(addFormHeaderText);
-    
-    const addFormHeaderIcon = document.createElement("span");
-    addFormHeaderIcon.textContent = "▼";
-    addFormHeaderIcon.style.fontSize = "10px";
-    addFormHeader.appendChild(addFormHeaderIcon);
-    
-    // Form content (collapsible)
-    const formContent = document.createElement("div");
-    formContent.style.display = "none";
-    formContent.style.padding = "8px";
-    formContent.style.backgroundColor = "#ffffff";
-    
-    // Name input
-    const nameLabel = document.createElement("label");
-    nameLabel.style.fontSize = "11px";
-    nameLabel.style.fontWeight = "600";
-    nameLabel.style.display = "block";
-    nameLabel.style.marginBottom = "4px";
-    nameLabel.style.color = "#374151";
-    nameLabel.textContent = "Nom / Numéro";
-    
-    const nameInput = document.createElement("input");
-    nameInput.type = "text";
-    nameInput.placeholder = "Ex: Appt 1, Porte gauche...";
-    nameInput.style.width = "100%";
-    nameInput.style.padding = "5px 6px";
-    nameInput.style.fontSize = "11px";
-    nameInput.style.border = "1px solid #d1d5db";
-    nameInput.style.borderRadius = "4px";
-    nameInput.style.marginBottom = "8px";
-    
-    // Status select
-    const statusLabel = document.createElement("label");
-    statusLabel.style.fontSize = "11px";
-    statusLabel.style.fontWeight = "600";
-    statusLabel.style.display = "block";
-    statusLabel.style.marginBottom = "4px";
-    statusLabel.style.color = "#374151";
-    statusLabel.textContent = "Statut";
-    
-    const statusSelect = document.createElement("select");
-    statusSelect.style.width = "100%";
-    statusSelect.style.padding = "5px 6px";
-    statusSelect.style.fontSize = "11px";
-    statusSelect.style.border = "1px solid #d1d5db";
-    statusSelect.style.borderRadius = "4px";
-    statusSelect.style.marginBottom = "8px";
-    
-    STATUS_OPTIONS.forEach(option => {
-      const optionEl = document.createElement("option");
-      optionEl.value = option.value;
-      optionEl.textContent = option.label;
-      statusSelect.appendChild(optionEl);
-    });
-    
-    // Observations textarea
-    const obsLabel = document.createElement("label");
-    obsLabel.style.fontSize = "11px";
-    obsLabel.style.fontWeight = "600";
-    obsLabel.style.display = "block";
-    obsLabel.style.marginBottom = "4px";
-    obsLabel.style.color = "#374151";
-    obsLabel.textContent = "Observations (optionnel)";
-    
-    const obsTextarea = document.createElement("textarea");
-    obsTextarea.placeholder = "Notes...";
-    obsTextarea.style.width = "100%";
-    obsTextarea.style.padding = "5px 6px";
-    obsTextarea.style.fontSize = "11px";
-    obsTextarea.style.border = "1px solid #d1d5db";
-    obsTextarea.style.borderRadius = "4px";
-    obsTextarea.style.marginBottom = "8px";
-    obsTextarea.style.minHeight = "50px";
-    obsTextarea.style.resize = "vertical";
-    obsTextarea.style.fontFamily = "inherit";
-    
-    // Add button
-    const addButton = document.createElement("button");
-    addButton.textContent = "➕ Ajouter l'appartement";
-    addButton.style.width = "100%";
-    addButton.style.padding = "8px 12px";
-    addButton.style.fontSize = "12px";
-    addButton.style.fontWeight = "600";
-    addButton.style.color = "#ffffff";
-    addButton.style.backgroundColor = "#059669";
-    addButton.style.border = "none";
-    addButton.style.borderRadius = "4px";
-    addButton.style.cursor = "pointer";
-    addButton.style.transition = "all 0.2s";
-    
-    addButton.addEventListener("mouseenter", () => {
-      addButton.style.backgroundColor = "#047857";
-    });
-    
-    addButton.addEventListener("mouseleave", () => {
-      addButton.style.backgroundColor = "#059669";
-    });
-    
-    addButton.addEventListener("click", async () => {
-      const name = nameInput.value.trim();
-      if (!name) {
-        toast.error("Le nom de l'appartement est requis");
-        return;
-      }
+    // Manage apartments button
+    if (onManageApartments) {
+      const manageButton = document.createElement("button");
+      manageButton.textContent = "🏢 Gérer les appartements";
+      manageButton.style.width = "100%";
+      manageButton.style.padding = "8px 12px";
+      manageButton.style.fontSize = "12px";
+      manageButton.style.fontWeight = "600";
+      manageButton.style.color = "#ffffff";
+      manageButton.style.backgroundColor = "#059669";
+      manageButton.style.border = "none";
+      manageButton.style.borderRadius = "6px";
+      manageButton.style.cursor = "pointer";
+      manageButton.style.transition = "all 0.2s";
+      manageButton.style.marginTop = "8px";
+      manageButton.style.marginBottom = "8px";
       
-      addButton.disabled = true;
-      addButton.style.opacity = "0.5";
-      addButton.textContent = "⏳ Ajout en cours...";
+      manageButton.addEventListener("mouseenter", () => {
+        manageButton.style.backgroundColor = "#047857";
+      });
       
-      const { error } = await supabase
-        .from("apartments")
-        .insert({
-          address_id: address.id,
-          name: name,
-          status: statusSelect.value as keyof typeof STATUS_CONFIG,
-          observations: obsTextarea.value.trim() || null,
-        });
+      manageButton.addEventListener("mouseleave", () => {
+        manageButton.style.backgroundColor = "#059669";
+      });
       
-      if (error) {
-        toast.error("Erreur lors de l'ajout de l'appartement");
-        addButton.disabled = false;
-        addButton.style.opacity = "1";
-        addButton.textContent = "➕ Ajouter l'appartement";
-      } else {
-        toast.success("Appartement ajouté !");
-        setTimeout(() => {
-          window.location.reload();
-        }, 600);
-      }
-    });
-    
-    // Toggle functionality
-    let isFormOpen = false;
-    addFormHeader.addEventListener("click", () => {
-      isFormOpen = !isFormOpen;
-      formContent.style.display = isFormOpen ? "block" : "none";
-      addFormHeaderIcon.textContent = isFormOpen ? "▲" : "▼";
-    });
-    
-    formContent.appendChild(nameLabel);
-    formContent.appendChild(nameInput);
-    formContent.appendChild(statusLabel);
-    formContent.appendChild(statusSelect);
-    formContent.appendChild(obsLabel);
-    formContent.appendChild(obsTextarea);
-    formContent.appendChild(addButton);
-    
-    addFormContainer.appendChild(addFormHeader);
-    addFormContainer.appendChild(formContent);
-    container.appendChild(addFormContainer);
+      manageButton.addEventListener("click", () => {
+        onManageApartments();
+      });
+      
+      container.appendChild(manageButton);
+    }
   }
 
   // Convert to building button (only for non-buildings)
