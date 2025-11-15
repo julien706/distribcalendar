@@ -293,6 +293,7 @@ export type Database = {
         Args: { _address_ids: string[]; _zone_id: string }
         Returns: undefined
       }
+      backfill_zone_assignments: { Args: never; Returns: number }
       get_user_team_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_zone_ids: { Args: { _user_id: string }; Returns: string[] }
       get_zone_stats: {
@@ -313,6 +314,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      point_in_polygon: {
+        Args: { coords: Json; lat: number; lon: number }
         Returns: boolean
       }
     }

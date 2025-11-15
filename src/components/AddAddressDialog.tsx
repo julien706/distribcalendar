@@ -88,19 +88,28 @@ export default function AddAddressDialog({
     setLoading(true);
     
     try {
-      const { error } = await supabase.from("addresses").insert({
-        street_name: result.data.street_name,
-        street_number: result.data.street_number || null,
-        city: result.data.city || null,
-        latitude: result.data.latitude,
-        longitude: result.data.longitude,
-        status: result.data.status,
-        observations: result.data.observations || null,
-      });
+      const { data, error } = await supabase
+        .from("addresses")
+        .insert({
+          street_name: result.data.street_name,
+          street_number: result.data.street_number || null,
+          city: result.data.city || null,
+          latitude: result.data.latitude,
+          longitude: result.data.longitude,
+          status: result.data.status,
+          observations: result.data.observations || null,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      toast.success("Adresse ajoutée avec succès");
+      if (data?.zone_id) {
+        toast.success("Adresse ajoutée et assignée à une zone");
+      } else {
+        toast.message("Adresse ajoutée (hors zone, visible uniquement pour les admins)");
+      }
+      
       onOpenChange(false);
       onSuccess();
     } catch (error) {
