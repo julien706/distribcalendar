@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 import { BarChart3, Users, MapPin, Group, Building, Home, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -117,24 +118,6 @@ export default function StatisticsView() {
           };
         });
         setTeamStats(tStats);
-      }
-
-      // Calculate user stats (simplified)
-      if (profiles && addressData) {
-        const uStats = profiles.map((profile: any) => {
-          return {
-            user_id: profile.id,
-            user_email: profile.email,
-            total_addresses: 0,
-            done: 0,
-            pending: 0,
-            refused: 0,
-            retry_first: 0,
-            retry_second: 0,
-            uninhabited: 0,
-          };
-        });
-        setUserStats(uStats);
       }
     } catch (error) {
       console.error("Error fetching statistics:", error);

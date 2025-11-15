@@ -768,37 +768,37 @@ export default function MapView() {
     localStorage.setItem('mapLayer', nextLayer);
   };
 
-  // Fetch addresses
-  useEffect(() => {
+  // Fetch addresses function (defined outside useEffect for reusability)
+  const fetchAddresses = async () => {
     const PAGE_SIZE = 1000;
+    let all: Address[] = [];
+    let page = 0;
 
-    const fetchAddresses = async () => {
-      let all: Address[] = [];
-      let page = 0;
+    while (true) {
+      const start = page * PAGE_SIZE;
+      const end = start + PAGE_SIZE - 1;
+      const { data, error } = await supabase
+        .from("addresses")
+        .select("*")
+        .order("street_name")
+        .range(start, end);
 
-      while (true) {
-        const start = page * PAGE_SIZE;
-        const end = start + PAGE_SIZE - 1;
-        const { data, error } = await supabase
-          .from("addresses")
-          .select("*")
-          .order("street_name")
-          .range(start, end);
-
-        if (error) {
-          toast.error("Erreur lors du chargement des adresses");
-          break;
-        }
-
-        all = all.concat(data || []);
-
-        if (!data || data.length < PAGE_SIZE) break;
-        page += 1;
+      if (error) {
+        toast.error("Erreur lors du chargement des adresses");
+        break;
       }
 
-      setAddresses(all);
-    };
+      all = all.concat(data || []);
 
+      if (!data || data.length < PAGE_SIZE) break;
+      page += 1;
+    }
+
+    setAddresses(all);
+  };
+
+  // Fetch addresses on mount and subscribe to changes
+  useEffect(() => {
     fetchAddresses();
 
     const channel = supabase
