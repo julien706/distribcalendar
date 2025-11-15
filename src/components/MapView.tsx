@@ -732,6 +732,7 @@ export default function MapView() {
     street_number?: string | null;
     is_building?: boolean | null;
     apartment_count?: number | null;
+    csv_data?: any;
   }, isSelected: boolean, showNumbersFlag: boolean) => {
     const statusConfig = STATUS_CONFIG[addr.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
     const color = statusConfig.color;
@@ -740,10 +741,22 @@ export default function MapView() {
     const apartmentCount = addr.apartment_count ?? 0;
     const isBuilding = (addr.is_building === true) || apartmentCount > 0;
 
+    // Determine if manually added
+    const hasImportedData = addr.csv_data && (
+      addr.csv_data.imported === true ||
+      addr.csv_data.commune_nom ||
+      addr.csv_data.voie_nom ||
+      (typeof addr.csv_data === 'object' && Object.keys(addr.csv_data).length > 0)
+    );
+    const isManuallyAdded = !hasImportedData;
+
     // 54px for buildings, 36px otherwise
     const markerSize = isBuilding ? 54 : 36;
 
     const streetNumber = showNumbersFlag ? (addr.street_number || '') : '';
+
+    // Shape: square for manually added, round for imported
+    const borderRadius = isManuallyAdded ? '4px' : '50%';
 
     return L.divIcon({
       className: "custom-marker",
@@ -752,7 +765,7 @@ export default function MapView() {
         height: ${markerSize}px;
         background-color: ${color};
         border: 3px solid white;
-        border-radius: 50%;
+        border-radius: ${borderRadius};
         ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
         cursor: pointer;
         transition: transform 0.2s;
@@ -769,9 +782,27 @@ export default function MapView() {
       ">
         ${isBuilding 
           ? `<div style="font-size: 24px;">🏢</div>
+             ${streetNumber 
+               ? `<div style="
+                   position: absolute;
+                   bottom: -12px;
+                   left: 50%;
+                   transform: translateX(-50%);
+                   background: white;
+                   color: #333;
+                   border-radius: 12px;
+                   padding: 4px 10px;
+                   font-size: 12px;
+                   font-weight: 700;
+                   box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+                   white-space: nowrap;
+                   border: 2px solid ${color};
+                 ">${streetNumber}</div>`
+               : ''
+             }
              <div style="
                position: absolute;
-               bottom: -8px;
+               top: -8px;
                right: -8px;
                background: white;
                color: #333;
@@ -1060,11 +1091,9 @@ export default function MapView() {
     const bounds: L.LatLngBoundsExpression = [];
     
     filteredAddresses.forEach((address) => {
-      const statusConfig = STATUS_CONFIG[address.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
-      const color = statusConfig.color;
       const isSelected = selectedAddresses.includes(address.id);
       
-      // Determine if this is a manually added address
+      // Determine if manually added (needed for drag/edit behavior)
       const hasImportedData = address.csv_data && (
         address.csv_data.imported === true ||
         address.csv_data.commune_nom ||
@@ -1072,63 +1101,9 @@ export default function MapView() {
         (typeof address.csv_data === 'object' && Object.keys(address.csv_data).length > 0)
       );
       const isManuallyAdded = !hasImportedData;
-      const textColor = getContrastingTextColor(color);
       
-      // Detect if it's a building
-      const apartmentCount = address.apartment_count ?? 0;
-      const isBuilding = (address.is_building === true) || apartmentCount > 0;
-      
-      // Taille du marker : 1.5x pour immeuble (54px vs 36px)
-      const markerSize = isBuilding ? 54 : 36;
-      
-      // Create custom icon with selection ring
-      const streetNumber = showNumbers ? (address.street_number || '') : '';
-      const icon = L.divIcon({
-        className: "custom-marker",
-        html: `<div style="
-          width: ${markerSize}px;
-          height: ${markerSize}px;
-          background-color: ${color};
-          border: 3px solid white;
-          border-radius: 50%;
-          ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
-          cursor: pointer;
-          transition: transform 0.2s;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          font-size: ${isBuilding ? '18px' : '13px'};
-          font-weight: 700;
-          color: ${textColor};
-          text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3);
-          line-height: 1;
-          position: relative;
-        ">
-          ${isBuilding 
-            ? `<div style="font-size: 24px;">🏢</div>
-               <div style="
-                 position: absolute;
-                 bottom: -8px;
-                 right: -8px;
-                 background: white;
-                 color: #333;
-                 border-radius: 50%;
-                 width: 20px;
-                 height: 20px;
-                 display: flex;
-                 align-items: center;
-                 justify-content: center;
-                 font-size: 10px;
-                 font-weight: 700;
-                 box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-               ">${apartmentCount}</div>`
-            : streetNumber
-          }
-        </div>`,
-        iconSize: [markerSize, markerSize],
-        iconAnchor: [markerSize/2, markerSize/2],
-      });
+      // Create custom icon with unified function
+      const icon = createMarkerIcon(address, isSelected, showNumbers);
 
       // Handle status change callback
       const handleStatusChange = (id: string, newStatus: string) => {
