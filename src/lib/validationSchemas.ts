@@ -7,7 +7,10 @@ export const addressSchema = z.object({
   latitude: z.number().min(-90, "Latitude invalide").max(90, "Latitude invalide"),
   longitude: z.number().min(-180, "Longitude invalide").max(180, "Longitude invalide"),
   observations: z.string().trim().max(1000, "Les observations sont trop longues (max 1000 caractères)").optional(),
-  status: z.enum(['pending', 'done', 'refused', 'retry_first', 'retry_second', 'uninhabited'])
+  status: z.enum(['pending', 'done', 'refused', 'retry_first', 'retry_second', 'uninhabited']),
+  is_building: z.boolean().optional(),
+  building_name: z.string().trim().max(200, "Le nom d'immeuble est trop long").optional(),
+  apartment_count: z.number().int().min(1, "Le nombre d'appartements doit être au moins 1").optional()
 });
 
 export const authSchema = z.object({
