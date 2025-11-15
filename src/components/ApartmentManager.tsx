@@ -6,7 +6,7 @@ import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { Plus, Pencil, Trash2, Building2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, X } from "lucide-react";
 import { toast } from "sonner";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
 import ApartmentQuickEdit from "./ApartmentQuickEdit";
@@ -151,6 +151,14 @@ export default function ApartmentManager({ address, onClose }: ApartmentManagerP
               )}
             </div>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="shrink-0"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Summary */}
