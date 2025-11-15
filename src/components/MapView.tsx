@@ -19,6 +19,9 @@ import StatusFilter from "./StatusFilter";
 import RouteOptimizer from "./RouteOptimizer";
 import CreateZoneDialog from "./CreateZoneDialog";
 import EditZoneDialog from "./EditZoneDialog";
+import { BuildingApartmentsDialog } from "./BuildingApartmentsDialog";
+import { ConvertToBuildingDialog } from "./ConvertToBuildingDialog";
+import { ConvertToAddressDialog } from "./ConvertToAddressDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +44,9 @@ type Address = {
   csv_data?: any | null;
   zone_id?: string | null;
   city?: string | null;
+  is_building?: boolean | null;
+  building_name?: string | null;
+  apartment_count?: number | null;
 };
 
 type Zone = {
@@ -106,6 +112,13 @@ export default function MapView() {
   const [showEditZone, setShowEditZone] = useState(false);
   const [editingZoneShape, setEditingZoneShape] = useState(false);
   const editingZoneLayerRef = useRef<L.Polygon | null>(null);
+  
+  // Building management state
+  const [buildingDialogOpen, setBuildingDialogOpen] = useState(false);
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+  const [convertToBuildingOpen, setConvertToBuildingOpen] = useState(false);
+  const [convertToAddressOpen, setConvertToAddressOpen] = useState(false);
+  const [convertAddressId, setConvertAddressId] = useState<string | null>(null);
   
   // Map layers state
   const [currentLayer, setCurrentLayer] = useState<'osm' | 'satellite' | 'hybrid'>(() => {
@@ -277,6 +290,37 @@ export default function MapView() {
       }
     };
   }, [addMode]);
+
+  // Event listeners for building dialogs
+  useEffect(() => {
+    const handleOpenBuilding = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setSelectedBuildingId(customEvent.detail.addressId);
+      setBuildingDialogOpen(true);
+    };
+    
+    const handleConvertToBuilding = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setConvertAddressId(customEvent.detail.addressId);
+      setConvertToBuildingOpen(true);
+    };
+    
+    const handleConvertToAddress = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setConvertAddressId(customEvent.detail.addressId);
+      setConvertToAddressOpen(true);
+    };
+
+    window.addEventListener('open-building-dialog', handleOpenBuilding);
+    window.addEventListener('convert-to-building', handleConvertToBuilding);
+    window.addEventListener('convert-to-address', handleConvertToAddress);
+
+    return () => {
+      window.removeEventListener('open-building-dialog', handleOpenBuilding);
+      window.removeEventListener('convert-to-building', handleConvertToBuilding);
+      window.removeEventListener('convert-to-address', handleConvertToAddress);
+    };
+  }, []);
 
   const handleGeolocate = () => {
     if (!mapRef.current) return;
@@ -902,7 +946,6 @@ export default function MapView() {
       const isSelected = selectedAddresses.includes(address.id);
       
       // Determine if this is a manually added address
-      // Imported addresses have csv_data with properties like commune_nom, voie_nom, or imported flag
       const hasImportedData = address.csv_data && (
         address.csv_data.imported === true ||
         address.csv_data.commune_nom ||
@@ -912,13 +955,20 @@ export default function MapView() {
       const isManuallyAdded = !hasImportedData;
       const textColor = getContrastingTextColor(color);
       
+      // Detect if it's a building
+      const isBuilding = address.is_building === true;
+      const apartmentCount = address.apartment_count || 0;
+      
+      // Taille du marker : 1.5x pour immeuble (54px vs 36px)
+      const markerSize = isBuilding ? 54 : 36;
+      
       // Create custom icon with selection ring
       const streetNumber = showNumbers ? (address.street_number || '') : '';
       const icon = L.divIcon({
         className: "custom-marker",
         html: `<div style="
-          width: 36px;
-          height: 36px;
+          width: ${markerSize}px;
+          height: ${markerSize}px;
           background-color: ${color};
           border: 3px solid white;
           border-radius: ${isManuallyAdded ? '50%' : '4px'};
@@ -926,16 +976,39 @@ export default function MapView() {
           cursor: pointer;
           transition: transform 0.2s;
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
-          font-size: 13px;
+          font-size: ${isBuilding ? '18px' : '13px'};
           font-weight: 700;
           color: ${textColor};
           text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3);
           line-height: 1;
-        ">${streetNumber}</div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
+          position: relative;
+        ">
+          ${isBuilding 
+            ? `<div style="font-size: 24px;">🏢</div>
+               <div style="
+                 position: absolute;
+                 bottom: -8px;
+                 right: -8px;
+                 background: white;
+                 color: #333;
+                 border-radius: 50%;
+                 width: 20px;
+                 height: 20px;
+                 display: flex;
+                 align-items: center;
+                 justify-content: center;
+                 font-size: 10px;
+                 font-weight: 700;
+                 box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+               ">${apartmentCount}</div>`
+            : streetNumber
+          }
+        </div>`,
+        iconSize: [markerSize, markerSize],
+        iconAnchor: [markerSize/2, markerSize/2],
       });
 
       // Handle status change callback
@@ -1015,7 +1088,13 @@ export default function MapView() {
       // Lazy load popup with interactive content only when clicked (not in lasso/add mode)
       if (!lassoMode && !addMode) {
         marker.on('popupopen', () => {
-          const popupContent = createPopupContent(address, handleStatusChange, address.latitude, address.longitude);
+          const popupContent = createPopupContent(
+            address, 
+            handleStatusChange, 
+            address.latitude, 
+            address.longitude,
+            fetchAddresses
+          );
           marker.setPopupContent(popupContent);
         });
         marker.bindPopup('', {
@@ -1355,6 +1434,28 @@ export default function MapView() {
           </Button>
         </div>
       )}
+
+      {/* Building Management Dialogs */}
+      <BuildingApartmentsDialog
+        addressId={selectedBuildingId}
+        open={buildingDialogOpen}
+        onOpenChange={setBuildingDialogOpen}
+        onUpdate={fetchAddresses}
+      />
+      
+      <ConvertToBuildingDialog
+        addressId={convertAddressId}
+        open={convertToBuildingOpen}
+        onOpenChange={setConvertToBuildingOpen}
+        onSuccess={fetchAddresses}
+      />
+      
+      <ConvertToAddressDialog
+        addressId={convertAddressId}
+        open={convertToAddressOpen}
+        onOpenChange={setConvertToAddressOpen}
+        onSuccess={fetchAddresses}
+      />
     </div>
   );
 }
