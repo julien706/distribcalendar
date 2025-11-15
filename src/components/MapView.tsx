@@ -1050,9 +1050,18 @@ export default function MapView() {
         }
       });
 
-      // Save new position on drag end when in moving mode
+      // Enable dragging directly in add mode for manual addresses
+      if (addMode && isManuallyAdded) {
+        if ((marker as any).dragging && typeof (marker as any).dragging.enable === 'function') {
+          (marker as any).dragging.enable();
+        }
+      }
+
+      // Save new position on drag end when in add mode for manual addresses
       marker.on('dragend', async () => {
-        if (movingAddressId !== address.id) return;
+        // Only save if in add mode and address is manually added
+        if (!addMode || !isManuallyAdded) return;
+        
         const pos = marker.getLatLng();
         try {
           const { error } = await supabase
@@ -1061,14 +1070,10 @@ export default function MapView() {
             .eq('id', address.id);
           if (error) throw error;
           toast.success('Position mise à jour');
+          setMovingAddressId(null);
         } catch (err) {
           console.error('Error updating position', err);
           toast.error("Erreur lors de la mise à jour de la position");
-        } finally {
-          if ((marker as any).dragging && typeof (marker as any).dragging.disable === 'function') {
-            (marker as any).dragging.disable();
-          }
-          setMovingAddressId(null);
         }
       });
 

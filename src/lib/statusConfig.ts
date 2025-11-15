@@ -35,7 +35,7 @@ export const STATUS_CONFIG = {
   },
   uninhabited: {
     label: "Inhabité",
-    color: "#64748b",
+    color: "#000000",
     icon: Home,
   },
   no_answer: {
