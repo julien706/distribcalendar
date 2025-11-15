@@ -1023,7 +1023,7 @@ export default function MapView() {
           height: ${markerSize}px;
           background-color: ${color};
           border: 3px solid white;
-          border-radius: ${isManuallyAdded ? '50%' : '4px'};
+          border-radius: 50%;
           ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
           cursor: pointer;
           transition: transform 0.2s;
