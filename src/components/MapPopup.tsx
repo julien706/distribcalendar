@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { STATUS_CONFIG } from "@/lib/statusConfig";
+import { createBuildingPopupContent } from "./BuildingPopup";
 
 type Address = {
   id: string;
@@ -9,6 +10,9 @@ type Address = {
   status: string;
   observations: string | null;
   city?: string | null;
+  is_building?: boolean | null;
+  building_name?: string | null;
+  apartment_count?: number | null;
 };
 
 const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
@@ -22,8 +26,21 @@ export function createPopupContent(
   address: Address & { csv_data?: { commune_nom?: string } },
   onStatusChange: (id: string, newStatus: string) => void,
   latitude: number,
-  longitude: number
+  longitude: number,
+  onUpdate?: () => void
 ) {
+  // Si c'est un immeuble, utiliser le popup spécialisé
+  if (address.is_building) {
+    return createBuildingPopupContent(
+      address,
+      onUpdate || (() => {}),
+      () => {
+        window.dispatchEvent(new CustomEvent('convert-to-address', { 
+          detail: { addressId: address.id } 
+        }));
+      }
+    );
+  }
   const container = document.createElement("div");
   container.className = "map-popup-container";
   container.style.padding = "12px";
@@ -263,6 +280,35 @@ export function createPopupContent(
 
   navContainer.appendChild(navButton);
   container.appendChild(navContainer);
+
+  // Button "Convertir en immeuble"
+  const convertBtn = document.createElement("button");
+  convertBtn.innerHTML = "🏢 Convertir en immeuble";
+  convertBtn.style.width = "100%";
+  convertBtn.style.padding = "8px";
+  convertBtn.style.marginTop = "8px";
+  convertBtn.style.borderRadius = "6px";
+  convertBtn.style.border = "1px solid #d1d5db";
+  convertBtn.style.backgroundColor = "#ffffff";
+  convertBtn.style.cursor = "pointer";
+  convertBtn.style.fontSize = "12px";
+  convertBtn.style.fontWeight = "500";
+  convertBtn.style.transition = "all 0.2s";
+  
+  convertBtn.addEventListener("mouseenter", () => {
+    convertBtn.style.backgroundColor = "#f3f4f6";
+  });
+
+  convertBtn.addEventListener("mouseleave", () => {
+    convertBtn.style.backgroundColor = "#ffffff";
+  });
+  
+  convertBtn.onclick = () => {
+    window.dispatchEvent(new CustomEvent('convert-to-building', { 
+      detail: { addressId: address.id } 
+    }));
+  };
+  container.appendChild(convertBtn);
 
   // History section
   const historyContainer = document.createElement("div");

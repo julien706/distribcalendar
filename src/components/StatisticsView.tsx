@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
-import { BarChart3, Users, MapPin, Group } from "lucide-react";
+import { BarChart3, Users, MapPin, Group, Building, Home, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { useAddressesWithApartments } from "@/hooks/useAddressesWithApartments";
+import StatisticsCard from "./StatisticsCard";
 
 interface UserStats {
   user_id: string;
@@ -43,10 +44,10 @@ interface TeamStats {
 }
 
 export default function StatisticsView() {
-  const [userStats, setUserStats] = useState<UserStats[]>([]);
   const [zoneStats, setZoneStats] = useState<ZoneStats[]>([]);
   const [teamStats, setTeamStats] = useState<TeamStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const { data: addressStats } = useAddressesWithApartments();
 
   useEffect(() => {
     fetchStatistics();
@@ -55,13 +56,6 @@ export default function StatisticsView() {
   const fetchStatistics = async () => {
     try {
       setLoading(true);
-
-      // Fetch user statistics
-      const { data: addressData } = await supabase
-        .from("addresses")
-        .select("status, last_visit_date, zone_id");
-
-      const { data: profiles } = await supabase.from("profiles").select("id, email");
 
       // Fetch zones with team info
       const { data: zones } = await supabase
