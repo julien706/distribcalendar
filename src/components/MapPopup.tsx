@@ -64,14 +64,100 @@ export async function createAddressPopupContent(
   separator.style.margin = "8px 0";
   container.appendChild(separator);
 
-  // Observations section
-  const obsLabel = document.createElement("label");
-  obsLabel.style.fontSize = "12px";
-  obsLabel.style.fontWeight = "600";
-  obsLabel.style.display = "block";
-  obsLabel.style.marginBottom = "4px";
-  obsLabel.textContent = "Observations";
-  container.appendChild(obsLabel);
+  // "Changer le statut:" label
+  const statusLabel = document.createElement("div");
+  statusLabel.style.fontSize = "14px";
+  statusLabel.style.fontWeight = "600";
+  statusLabel.style.marginBottom = "8px";
+  statusLabel.style.color = "#6b7280";
+  statusLabel.textContent = "Changer le statut:";
+  container.appendChild(statusLabel);
+
+  // Quick status buttons (priority order: pending, done, retry_first, retry_second, refused, uninhabited, no_answer)
+  const quickStatusDiv = document.createElement("div");
+  quickStatusDiv.style.display = "grid";
+  quickStatusDiv.style.gridTemplateColumns = "repeat(3, 1fr)";
+  quickStatusDiv.style.gap = "8px";
+  quickStatusDiv.style.marginBottom = "12px";
+
+  const priorityStatuses = ["pending", "done", "retry_first", "retry_second", "refused", "uninhabited", "no_answer"];
+  priorityStatuses.forEach((statusKey) => {
+    const config = STATUS_CONFIG[statusKey as keyof typeof STATUS_CONFIG];
+    const btn = document.createElement("button");
+    btn.style.padding = "12px 8px";
+    btn.style.fontSize = "11px";
+    btn.style.border = `2px solid ${config.color}`;
+    btn.style.borderRadius = "8px";
+    btn.style.cursor = "pointer";
+    btn.style.backgroundColor = address.status === statusKey ? config.color : "white";
+    btn.style.color = address.status === statusKey ? "white" : config.color;
+    btn.style.fontWeight = "600";
+    btn.style.textAlign = "center";
+    btn.style.transition = "all 0.2s";
+    btn.innerHTML = `${config.icon} ${config.label}`;
+    
+    btn.addEventListener("mouseenter", () => {
+      if (address.status !== statusKey) {
+        btn.style.backgroundColor = config.color + "20";
+      }
+    });
+    
+    btn.addEventListener("mouseleave", () => {
+      if (address.status !== statusKey) {
+        btn.style.backgroundColor = "white";
+      }
+    });
+    
+    btn.addEventListener("click", () => {
+      onStatusChange(address.id, statusKey);
+    });
+    
+    quickStatusDiv.appendChild(btn);
+  });
+  
+  container.appendChild(quickStatusDiv);
+
+  // Separator
+  const separator2 = document.createElement("hr");
+  separator2.style.border = "none";
+  separator2.style.borderTop = "1px solid #e5e7eb";
+  separator2.style.margin = "8px 0";
+  container.appendChild(separator2);
+
+  // Observations section (collapsible)
+  const obsSection = document.createElement("div");
+  obsSection.style.marginBottom = "8px";
+  obsSection.style.border = "1px solid #e5e7eb";
+  obsSection.style.borderRadius = "6px";
+  obsSection.style.overflow = "hidden";
+
+  // Observations header (clickable)
+  const obsHeader = document.createElement("div");
+  obsHeader.style.padding = "8px";
+  obsHeader.style.backgroundColor = "#f9fafb";
+  obsHeader.style.cursor = "pointer";
+  obsHeader.style.fontWeight = "600";
+  obsHeader.style.fontSize = "14px";
+  obsHeader.style.display = "flex";
+  obsHeader.style.justifyContent = "space-between";
+  obsHeader.style.alignItems = "center";
+  obsHeader.style.userSelect = "none";
+  obsHeader.style.color = "#6b7280";
+
+  const obsTitle = document.createElement("span");
+  obsTitle.textContent = "Observations";
+  obsHeader.appendChild(obsTitle);
+
+  const obsIcon = document.createElement("span");
+  obsIcon.textContent = "▼";
+  obsIcon.style.fontSize = "10px";
+  obsHeader.appendChild(obsIcon);
+
+  // Observations content
+  const obsContent = document.createElement("div");
+  obsContent.style.padding = "8px";
+  let isObsOpen = true; // Open by default
+  obsContent.style.display = "block";
 
   const obsTextarea = document.createElement("textarea");
   obsTextarea.style.width = "100%";
@@ -79,7 +165,6 @@ export async function createAddressPopupContent(
   obsTextarea.style.fontSize = "12px";
   obsTextarea.style.border = "1px solid #d1d5db";
   obsTextarea.style.borderRadius = "6px";
-  obsTextarea.style.marginBottom = "8px";
   obsTextarea.style.minHeight = "60px";
   obsTextarea.style.resize = "vertical";
   obsTextarea.value = address.observations || "";
@@ -105,7 +190,98 @@ export async function createAddressPopupContent(
     }, 500);
   });
 
-  container.appendChild(obsTextarea);
+  obsContent.appendChild(obsTextarea);
+
+  // Toggle observations collapsible
+  obsHeader.addEventListener("click", () => {
+    isObsOpen = !isObsOpen;
+    obsContent.style.display = isObsOpen ? "block" : "none";
+    obsIcon.textContent = isObsOpen ? "▼" : "▶";
+  });
+
+  obsSection.appendChild(obsHeader);
+  obsSection.appendChild(obsContent);
+  container.appendChild(obsSection);
+
+  // Separator
+  const separator3 = document.createElement("hr");
+  separator3.style.border = "none";
+  separator3.style.borderTop = "1px solid #e5e7eb";
+  separator3.style.margin = "8px 0";
+  container.appendChild(separator3);
+
+  // Transform to building button (small button with icon)
+  const convertBtn = document.createElement("button");
+  convertBtn.innerHTML = "🏢 Transformer en immeuble";
+  convertBtn.style.width = "100%";
+  convertBtn.style.padding = "8px";
+  convertBtn.style.marginBottom = "8px";
+  convertBtn.style.backgroundColor = "white";
+  convertBtn.style.color = "#6b7280";
+  convertBtn.style.border = "1px solid #d1d5db";
+  convertBtn.style.borderRadius = "6px";
+  convertBtn.style.cursor = "pointer";
+  convertBtn.style.fontWeight = "500";
+  convertBtn.style.fontSize = "12px";
+  convertBtn.style.transition = "all 0.2s";
+  
+  convertBtn.addEventListener("mouseenter", () => {
+    convertBtn.style.backgroundColor = "#f9fafb";
+    convertBtn.style.borderColor = "#9ca3af";
+  });
+  
+  convertBtn.addEventListener("mouseleave", () => {
+    convertBtn.style.backgroundColor = "white";
+    convertBtn.style.borderColor = "#d1d5db";
+  });
+  
+  convertBtn.addEventListener("click", async () => {
+    try {
+      const { error } = await supabase
+        .from("addresses")
+        .update({ 
+          is_building: true,
+          building_name: null,
+          apartment_count: 0 
+        })
+        .eq("id", address.id);
+
+      if (error) throw error;
+      
+      toast.success("Transformé en immeuble !");
+      onUpdate();
+      
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Erreur lors de la transformation");
+    }
+  });
+  
+  container.appendChild(convertBtn);
+
+  // Navigate button (big blue button)
+  const navBtn = document.createElement("a");
+  navBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+  navBtn.target = "_blank";
+  navBtn.style.display = "block";
+  navBtn.style.textAlign = "center";
+  navBtn.style.padding = "12px";
+  navBtn.style.backgroundColor = "#3B82F6";
+  navBtn.style.color = "white";
+  navBtn.style.textDecoration = "none";
+  navBtn.style.borderRadius = "8px";
+  navBtn.style.fontWeight = "600";
+  navBtn.style.fontSize = "14px";
+  navBtn.style.marginBottom = "8px";
+  navBtn.innerHTML = "📍 Naviguer";
+  container.appendChild(navBtn);
+
+  // Separator
+  const separator4 = document.createElement("hr");
+  separator4.style.border = "none";
+  separator4.style.borderTop = "1px solid #e5e7eb";
+  separator4.style.margin = "8px 0";
+  container.appendChild(separator4);
 
   // Fetch and display history
   const { data: history } = await supabase
@@ -116,13 +292,6 @@ export async function createAddressPopupContent(
     .limit(10);
 
   if (history && history.length > 0) {
-    // Separator
-    const historySeparator = document.createElement("hr");
-    historySeparator.style.border = "none";
-    historySeparator.style.borderTop = "1px solid #e5e7eb";
-    historySeparator.style.margin = "8px 0";
-    container.appendChild(historySeparator);
-
     // History section (collapsible)
     const historySection = document.createElement("div");
     historySection.style.marginBottom = "8px";
@@ -136,18 +305,19 @@ export async function createAddressPopupContent(
     historyHeader.style.backgroundColor = "#f9fafb";
     historyHeader.style.cursor = "pointer";
     historyHeader.style.fontWeight = "600";
-    historyHeader.style.fontSize = "12px";
+    historyHeader.style.fontSize = "14px";
     historyHeader.style.display = "flex";
     historyHeader.style.justifyContent = "space-between";
     historyHeader.style.alignItems = "center";
     historyHeader.style.userSelect = "none";
+    historyHeader.style.color = "#6b7280";
 
     const historyTitle = document.createElement("span");
-    historyTitle.textContent = `📜 Historique (${history.length})`;
+    historyTitle.textContent = "Historique";
     historyHeader.appendChild(historyTitle);
 
     const historyIcon = document.createElement("span");
-    historyIcon.textContent = "▶";
+    historyIcon.textContent = "▼";
     historyIcon.style.fontSize = "10px";
     historyHeader.appendChild(historyIcon);
 
@@ -156,8 +326,8 @@ export async function createAddressPopupContent(
     historyContent.style.maxHeight = "200px";
     historyContent.style.overflowY = "auto";
     historyContent.style.padding = "6px";
-    let isHistoryOpen = false;
-    historyContent.style.display = "none";
+    let isHistoryOpen = true; // Open by default
+    historyContent.style.display = "block";
 
     // Populate history entries
     history.forEach((entry, index) => {
@@ -236,105 +406,6 @@ export async function createAddressPopupContent(
     historySection.appendChild(historyContent);
     container.appendChild(historySection);
   }
-
-  // Separator
-  const separator2 = document.createElement("hr");
-  separator2.style.border = "none";
-  separator2.style.borderTop = "1px solid #e5e7eb";
-  separator2.style.margin = "8px 0";
-  container.appendChild(separator2);
-
-  // Transform to building button
-  const convertBtn = document.createElement("button");
-  convertBtn.textContent = "🏢 Transformer en immeuble";
-  convertBtn.style.width = "100%";
-  convertBtn.style.padding = "8px";
-  convertBtn.style.marginBottom = "8px";
-  convertBtn.style.backgroundColor = "#3B82F6";
-  convertBtn.style.color = "white";
-  convertBtn.style.border = "none";
-  convertBtn.style.borderRadius = "6px";
-  convertBtn.style.cursor = "pointer";
-  convertBtn.style.fontWeight = "600";
-  convertBtn.style.fontSize = "12px";
-  
-  convertBtn.addEventListener("click", async () => {
-    try {
-      const { error } = await supabase
-        .from("addresses")
-        .update({ 
-          is_building: true,
-          building_name: null,
-          apartment_count: 0 
-        })
-        .eq("id", address.id);
-
-      if (error) throw error;
-      
-      toast.success("Transformé en immeuble !");
-      onUpdate();
-      
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Erreur lors de la transformation");
-    }
-  });
-  
-  container.appendChild(convertBtn);
-
-  // Separator
-  const separator3 = document.createElement("hr");
-  separator3.style.border = "none";
-  separator3.style.borderTop = "1px solid #e5e7eb";
-  separator3.style.margin = "8px 0";
-  container.appendChild(separator3);
-
-  // Quick status buttons
-  const quickStatusDiv = document.createElement("div");
-  quickStatusDiv.style.display = "grid";
-  quickStatusDiv.style.gridTemplateColumns = "repeat(3, 1fr)";
-  quickStatusDiv.style.gap = "4px";
-  quickStatusDiv.style.marginBottom = "8px";
-
-  const priorityStatuses = ["done", "pending", "retry_first", "refused", "no_answer", "uninhabited"];
-  priorityStatuses.forEach((statusKey) => {
-    const config = STATUS_CONFIG[statusKey as keyof typeof STATUS_CONFIG];
-    const btn = document.createElement("button");
-    btn.style.padding = "6px 4px";
-    btn.style.fontSize = "10px";
-    btn.style.border = "1px solid #d1d5db";
-    btn.style.borderRadius = "4px";
-    btn.style.cursor = "pointer";
-    btn.style.backgroundColor = address.status === statusKey ? config.color : "white";
-    btn.style.color = address.status === statusKey ? "white" : config.color;
-    btn.style.fontWeight = "600";
-    btn.style.textAlign = "center";
-    btn.textContent = config.label;
-    
-    btn.addEventListener("click", () => {
-      onStatusChange(address.id, statusKey);
-    });
-    
-    quickStatusDiv.appendChild(btn);
-  });
-  
-  container.appendChild(quickStatusDiv);
-
-  // Navigate button
-  const navBtn = document.createElement("a");
-  navBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-  navBtn.target = "_blank";
-  navBtn.style.display = "block";
-  navBtn.style.textAlign = "center";
-  navBtn.style.padding = "8px";
-  navBtn.style.backgroundColor = "#10b981";
-  navBtn.style.color = "white";
-  navBtn.style.textDecoration = "none";
-  navBtn.style.borderRadius = "6px";
-  navBtn.style.fontWeight = "600";
-  navBtn.style.fontSize = "12px";
-  navBtn.textContent = "📍 Naviguer";
-  container.appendChild(navBtn);
 
   return container;
 }
