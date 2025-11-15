@@ -41,6 +41,9 @@ type Address = {
   csv_data?: any | null;
   zone_id?: string | null;
   city?: string | null;
+  is_building?: boolean;
+  building_name?: string | null;
+  apartment_count?: number | null;
 };
 
 type Zone = {
@@ -912,30 +915,52 @@ export default function MapView() {
       const isManuallyAdded = !hasImportedData;
       const textColor = getContrastingTextColor(color);
       
-      // Create custom icon with selection ring
+      // Create custom icon with selection ring and building indicator
+      const isBuilding = address.is_building || false;
       const streetNumber = showNumbers ? (address.street_number || '') : '';
+      
+      // Building marker: larger with building icon
+      const buildingHtml = isBuilding 
+        ? `<div style="
+            width: 44px;
+            height: 44px;
+            background-color: ${color};
+            border: 3px solid white;
+            border-radius: 8px;
+            ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 6px rgba(0,0,0,0.4); transform: scale(1.08);' : 'box-shadow: 0 2px 6px rgba(0,0,0,0.4);'}
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: ${textColor};
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+          ">🏢</div>`
+        : `<div style="
+            width: 36px;
+            height: 36px;
+            background-color: ${color};
+            border: 3px solid white;
+            border-radius: ${isManuallyAdded ? '50%' : '4px'};
+            ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: ${textColor};
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3);
+            line-height: 1;
+          ">${streetNumber}</div>`;
+      
       const icon = L.divIcon({
         className: "custom-marker",
-        html: `<div style="
-          width: 36px;
-          height: 36px;
-          background-color: ${color};
-          border: 3px solid white;
-          border-radius: ${isManuallyAdded ? '50%' : '4px'};
-          ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
-          cursor: pointer;
-          transition: transform 0.2s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 13px;
-          font-weight: 700;
-          color: ${textColor};
-          text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3);
-          line-height: 1;
-        ">${streetNumber}</div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
+        html: buildingHtml,
+        iconSize: isBuilding ? [44, 44] : [36, 36],
+        iconAnchor: isBuilding ? [22, 22] : [18, 18],
       });
 
       // Handle status change callback

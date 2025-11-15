@@ -28,10 +28,11 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Separator } from "./ui/separator";
 import { toast } from "sonner";
 import { STATUS_CONFIG } from "@/lib/statusConfig";
-import { History, ArrowRight } from "lucide-react";
+import { History, ArrowRight, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
+import ApartmentManager from "./ApartmentManager";
 
 type Address = {
   id: string;
@@ -41,6 +42,10 @@ type Address = {
   longitude: number;
   status: string;
   observations: string | null;
+  is_building?: boolean;
+  building_name?: string | null;
+  apartment_count?: number | null;
+  city?: string | null;
 };
 
 type StatusHistory = {
@@ -75,6 +80,7 @@ export default function AddressForm({
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState<StatusHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showApartmentManager, setShowApartmentManager] = useState(false);
 
   useEffect(() => {
     if (address && open) {
@@ -173,6 +179,27 @@ export default function AddressForm({
               {(observations || "").length}/1000 caractères
             </p>
           </div>
+
+          {/* Building management button */}
+          {address.is_building && (
+            <>
+              <Separator className="my-4" />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => setShowApartmentManager(true)}
+              >
+                <Building2 className="h-4 w-4 mr-2" />
+                Gérer les appartements
+                {address.apartment_count && address.apartment_count > 0 && (
+                  <span className="ml-2 text-muted-foreground">
+                    ({address.apartment_count} appt{address.apartment_count > 1 ? "s" : ""})
+                  </span>
+                )}
+              </Button>
+            </>
+          )}
 
           {history.length > 0 && (
             <>
@@ -281,4 +308,29 @@ export default function AddressForm({
       </DialogContent>
     </Dialog>
   );
+
+  // Apartment Manager Dialog
+  if (showApartmentManager && address) {
+    return (
+      <Dialog open={showApartmentManager} onOpenChange={setShowApartmentManager}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Gestion des appartements</DialogTitle>
+          </DialogHeader>
+          <ApartmentManager
+            address={{
+              id: address.id,
+              street_name: address.street_name,
+              street_number: address.street_number,
+              city: address.city || null,
+              building_name: address.building_name || null,
+            }}
+            onClose={() => setShowApartmentManager(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return null;
 }

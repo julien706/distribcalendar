@@ -9,6 +9,9 @@ type Address = {
   status: string;
   observations: string | null;
   city?: string | null;
+  is_building?: boolean;
+  building_name?: string | null;
+  apartment_count?: number | null;
 };
 
 const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
@@ -48,6 +51,21 @@ export function createPopupContent(
     cityDiv.style.marginBottom = "8px";
     cityDiv.textContent = cityName;
     container.appendChild(cityDiv);
+  }
+
+  // Building info
+  if (address.is_building) {
+    const buildingDiv = document.createElement("div");
+    buildingDiv.style.fontSize = "12px";
+    buildingDiv.style.color = "#059669";
+    buildingDiv.style.fontWeight = "600";
+    buildingDiv.style.marginBottom = "8px";
+    buildingDiv.style.padding = "6px 8px";
+    buildingDiv.style.backgroundColor = "#f0fdf4";
+    buildingDiv.style.borderRadius = "6px";
+    buildingDiv.style.border = "1px solid #d1fae5";
+    buildingDiv.innerHTML = `🏢 Immeuble${address.building_name ? ` • ${address.building_name}` : ""}${address.apartment_count ? `<br/><span style="font-size: 11px; font-weight: 500;">${address.apartment_count} appartement${address.apartment_count > 1 ? "s" : ""}</span>` : ""}`;
+    container.appendChild(buildingDiv);
   }
 
   // Status label
