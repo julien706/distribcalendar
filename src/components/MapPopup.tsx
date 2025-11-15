@@ -186,6 +186,129 @@ export async function createPopupContent(
     }
   }
 
+  // Convert to building button (only for non-buildings)
+  if (!address.is_building) {
+    const convertDiv = document.createElement("div");
+    convertDiv.style.marginTop = "12px";
+    convertDiv.style.marginBottom = "12px";
+    
+    const convertButton = document.createElement("button");
+    convertButton.textContent = "🏢 Transformer en immeuble";
+    convertButton.style.width = "100%";
+    convertButton.style.padding = "8px 12px";
+    convertButton.style.fontSize = "12px";
+    convertButton.style.fontWeight = "500";
+    convertButton.style.color = "#059669";
+    convertButton.style.backgroundColor = "#f0fdf4";
+    convertButton.style.border = "1px solid #a7f3d0";
+    convertButton.style.borderRadius = "6px";
+    convertButton.style.cursor = "pointer";
+    convertButton.style.transition = "all 0.2s";
+    
+    convertButton.addEventListener("mouseenter", () => {
+      convertButton.style.backgroundColor = "#dcfce7";
+    });
+    
+    convertButton.addEventListener("mouseleave", () => {
+      convertButton.style.backgroundColor = "#f0fdf4";
+    });
+    
+    convertButton.addEventListener("click", async () => {
+      convertButton.disabled = true;
+      convertButton.style.opacity = "0.5";
+      convertButton.textContent = "⏳ Conversion...";
+      
+      const { error } = await supabase
+        .from("addresses")
+        .update({
+          is_building: true,
+          building_name: null,
+          apartment_count: null,
+        })
+        .eq("id", address.id);
+      
+      if (error) {
+        toast.error("Erreur lors de la conversion en immeuble");
+        convertButton.disabled = false;
+        convertButton.style.opacity = "1";
+        convertButton.textContent = "🏢 Transformer en immeuble";
+      } else {
+        toast.success("Adresse transformée en immeuble !");
+        setTimeout(() => {
+          window.location.reload();
+        }, 800);
+      }
+    });
+    
+    convertDiv.appendChild(convertButton);
+    container.appendChild(convertDiv);
+  }
+
+  // Revert building button (only for buildings without apartments)
+  if (address.is_building) {
+    const { count: apartmentCount } = await supabase
+      .from("apartments")
+      .select("*", { count: "exact", head: true })
+      .eq("address_id", address.id);
+    
+    if (apartmentCount === 0) {
+      const revertDiv = document.createElement("div");
+      revertDiv.style.marginTop = "8px";
+      revertDiv.style.marginBottom = "12px";
+      
+      const revertButton = document.createElement("button");
+      revertButton.textContent = "❌ Retirer le statut immeuble";
+      revertButton.style.width = "100%";
+      revertButton.style.padding = "8px 12px";
+      revertButton.style.fontSize = "12px";
+      revertButton.style.fontWeight = "500";
+      revertButton.style.color = "#dc2626";
+      revertButton.style.backgroundColor = "#fef2f2";
+      revertButton.style.border = "1px solid #fecaca";
+      revertButton.style.borderRadius = "6px";
+      revertButton.style.cursor = "pointer";
+      revertButton.style.transition = "all 0.2s";
+      
+      revertButton.addEventListener("mouseenter", () => {
+        revertButton.style.backgroundColor = "#fee2e2";
+      });
+      
+      revertButton.addEventListener("mouseleave", () => {
+        revertButton.style.backgroundColor = "#fef2f2";
+      });
+      
+      revertButton.addEventListener("click", async () => {
+        revertButton.disabled = true;
+        revertButton.style.opacity = "0.5";
+        revertButton.textContent = "⏳ Suppression...";
+        
+        const { error } = await supabase
+          .from("addresses")
+          .update({
+            is_building: false,
+            building_name: null,
+            apartment_count: null,
+          })
+          .eq("id", address.id);
+        
+        if (error) {
+          toast.error("Erreur lors de la suppression du statut immeuble");
+          revertButton.disabled = false;
+          revertButton.style.opacity = "1";
+          revertButton.textContent = "❌ Retirer le statut immeuble";
+        } else {
+          toast.success("Statut immeuble retiré !");
+          setTimeout(() => {
+            window.location.reload();
+          }, 800);
+        }
+      });
+      
+      revertDiv.appendChild(revertButton);
+      container.appendChild(revertDiv);
+    }
+  }
+
   // Status label
   const statusLabel = document.createElement("div");
   statusLabel.style.fontSize = "11px";
