@@ -741,21 +741,16 @@ export default function MapView() {
     const apartmentCount = addr.apartment_count ?? 0;
     const isBuilding = (addr.is_building === true) || apartmentCount > 0;
 
-    // Determine if manually added
-    const hasImportedData = addr.csv_data && (
-      addr.csv_data.imported === true ||
-      addr.csv_data.commune_nom ||
-      addr.csv_data.voie_nom ||
-      (typeof addr.csv_data === 'object' && Object.keys(addr.csv_data).length > 0)
-    );
-    const isManuallyAdded = !hasImportedData;
+    // Determine if manually added or imported
+    const isManuallyAdded = addr.csv_data?.manually_added === true;
+    const isImported = addr.csv_data?.imported === true;
 
     // 54px for buildings, 36px otherwise
     const markerSize = isBuilding ? 54 : 36;
 
     const streetNumber = showNumbersFlag ? (addr.street_number || '') : '';
 
-    // Shape: square for manually added, round for imported
+    // Shape: square for manually added, round for imported/existing (NULL csv_data)
     const borderRadius = isManuallyAdded ? '4px' : '50%';
 
     return L.divIcon({

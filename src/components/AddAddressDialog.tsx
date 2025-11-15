@@ -98,6 +98,7 @@ export default function AddAddressDialog({
           longitude: result.data.longitude,
           status: result.data.status,
           observations: result.data.observations || null,
+          csv_data: { manually_added: true },
         })
         .select()
         .single();
