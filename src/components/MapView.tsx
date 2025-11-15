@@ -19,6 +19,8 @@ import StatusFilter from "./StatusFilter";
 import RouteOptimizer from "./RouteOptimizer";
 import CreateZoneDialog from "./CreateZoneDialog";
 import EditZoneDialog from "./EditZoneDialog";
+import ApartmentManager from "./ApartmentManager";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,6 +58,7 @@ type Zone = {
 
 export default function MapView() {
   const { isAdmin } = useAuth();
+  const queryClient = useQueryClient();
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.Marker[]>([]);
@@ -94,6 +97,10 @@ export default function MapView() {
   const [optimizedRoute, setOptimizedRoute] = useState<Address[]>([]);
   const routeLineRef = useRef<L.Polyline | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  
+  // Apartment manager state
+  const [showApartmentManager, setShowApartmentManager] = useState(false);
+  const [selectedBuildingAddress, setSelectedBuildingAddress] = useState<Address | null>(null);
   
   // Zone management state
   const [zones, setZones] = useState<Zone[]>([]);
@@ -1040,7 +1047,17 @@ export default function MapView() {
       // Lazy load popup with interactive content only when clicked (not in lasso/add mode)
       if (!lassoMode && !addMode) {
         marker.on('popupopen', async () => {
-          const popupContent = await createPopupContent(address, handleStatusChange, address.latitude, address.longitude);
+          const popupContent = await createPopupContent(
+            address, 
+            handleStatusChange, 
+            address.latitude, 
+            address.longitude,
+            () => {
+              // Open apartment manager
+              setSelectedBuildingAddress(address);
+              setShowApartmentManager(true);
+            }
+          );
           marker.setPopupContent(popupContent);
         });
         marker.bindPopup('', {
@@ -1368,6 +1385,29 @@ export default function MapView() {
           }
         }}
       />
+
+      {/* Apartment Manager Dialog */}
+      {showApartmentManager && selectedBuildingAddress && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50">
+          <div className="relative bg-background rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <ApartmentManager
+              address={{
+                id: selectedBuildingAddress.id,
+                street_name: selectedBuildingAddress.street_name,
+                street_number: selectedBuildingAddress.street_number,
+                city: selectedBuildingAddress.city || null,
+                building_name: selectedBuildingAddress.building_name || null,
+              }}
+              onClose={() => {
+                setShowApartmentManager(false);
+                setSelectedBuildingAddress(null);
+                // Invalidate address queries to refresh the data
+                queryClient.invalidateQueries({ queryKey: ['addresses'] });
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Zone Shape Editing Overlay */}
       {editingZoneShape && (
