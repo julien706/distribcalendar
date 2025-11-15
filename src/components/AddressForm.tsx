@@ -33,14 +33,18 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-type Address = {
+type AddressOrApartment = {
   id: string;
+  type?: 'address' | 'apartment';
   street_name: string;
   street_number: string | null;
   latitude: number;
   longitude: number;
   status: string;
   observations: string | null;
+  apartment_name?: string;
+  building_name?: string | null;
+  parent_address_id?: string;
 };
 
 type StatusHistory = {
@@ -63,7 +67,7 @@ export default function AddressForm({
   open,
   onClose,
 }: {
-  address: Address | null;
+  address: AddressOrApartment | null;
   open: boolean;
   onClose: () => void;
 }) {
@@ -88,6 +92,14 @@ export default function AddressForm({
     if (!address) return;
     
     setLoadingHistory(true);
+    
+    // L'historique n'existe que pour les adresses, pas pour les appartements
+    if (address.type === 'apartment') {
+      setHistory([]);
+      setLoadingHistory(false);
+      return;
+    }
+    
     const { data, error } = await supabase
       .from("address_status_history")
       .select("*")
@@ -110,22 +122,43 @@ export default function AddressForm({
     }
 
     setSaving(true);
-    const { error } = await supabase
-      .from("addresses")
-      .update({
-        status,
-        observations: observations?.trim() || null,
-        last_visit_date: new Date().toISOString(),
-      })
-      .eq("id", address.id);
+    
+    // Mettre à jour la bonne table selon le type
+    if (address.type === 'apartment') {
+      const { error } = await supabase
+        .from("apartments")
+        .update({
+          status,
+          observations: observations?.trim() || null,
+        })
+        .eq("id", address.id);
 
-    setSaving(false);
+      setSaving(false);
 
-    if (error) {
-      toast.error("Erreur lors de la sauvegarde");
+      if (error) {
+        toast.error("Erreur lors de la sauvegarde");
+      } else {
+        toast.success("Appartement mis à jour avec succès");
+        onClose();
+      }
     } else {
-      toast.success("Adresse mise à jour avec succès");
-      onClose();
+      const { error } = await supabase
+        .from("addresses")
+        .update({
+          status,
+          observations: observations?.trim() || null,
+          last_visit_date: new Date().toISOString(),
+        })
+        .eq("id", address.id);
+
+      setSaving(false);
+
+      if (error) {
+        toast.error("Erreur lors de la sauvegarde");
+      } else {
+        toast.success("Adresse mise à jour avec succès");
+        onClose();
+      }
     }
   };
 
@@ -252,9 +285,15 @@ export default function AddressForm({
         <DrawerContent className="max-h-[90vh]">
           <DrawerHeader>
             <DrawerTitle>
-              {address.street_number || ""} {address.street_name}
+              {address.type === 'apartment' && address.apartment_name
+                ? `${address.apartment_name} - ${address.street_number || ""} ${address.street_name}`
+                : `${address.street_number || ""} ${address.street_name}`
+              }
             </DrawerTitle>
             <DrawerDescription>
+              {address.type === 'apartment' && address.building_name && (
+                <span className="block text-sm mb-1">🏢 {address.building_name}</span>
+              )}
               Mettre à jour le statut de distribution
             </DrawerDescription>
           </DrawerHeader>
@@ -271,9 +310,15 @@ export default function AddressForm({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {address.street_number || ""} {address.street_name}
+            {address.type === 'apartment' && address.apartment_name
+              ? `${address.apartment_name} - ${address.street_number || ""} ${address.street_name}`
+              : `${address.street_number || ""} ${address.street_name}`
+            }
           </DialogTitle>
           <DialogDescription>
+            {address.type === 'apartment' && address.building_name && (
+              <span className="block text-sm mb-1">🏢 {address.building_name}</span>
+            )}
             Mettre à jour le statut de distribution
           </DialogDescription>
         </DialogHeader>
