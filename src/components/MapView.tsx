@@ -1008,8 +1008,8 @@ export default function MapView() {
       const textColor = getContrastingTextColor(color);
       
       // Detect if it's a building
-      const isBuilding = address.is_building === true;
-      const apartmentCount = address.apartment_count || 0;
+      const apartmentCount = address.apartment_count ?? 0;
+      const isBuilding = (address.is_building === true) || apartmentCount > 0;
       
       // Taille du marker : 1.5x pour immeuble (54px vs 36px)
       const markerSize = isBuilding ? 54 : 36;
