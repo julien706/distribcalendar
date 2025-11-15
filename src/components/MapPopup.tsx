@@ -21,7 +21,7 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
   icon: config.icon,
 }));
 
-export function createPopupContent(
+export async function createPopupContent(
   address: Address & { csv_data?: { commune_nom?: string } },
   onStatusChange: (id: string, newStatus: string) => void,
   latitude: number,
@@ -66,6 +66,124 @@ export function createPopupContent(
     buildingDiv.style.border = "1px solid #d1fae5";
     buildingDiv.innerHTML = `🏢 Immeuble${address.building_name ? ` • ${address.building_name}` : ""}${address.apartment_count ? `<br/><span style="font-size: 11px; font-weight: 500;">${address.apartment_count} appartement${address.apartment_count > 1 ? "s" : ""}</span>` : ""}`;
     container.appendChild(buildingDiv);
+    
+    // Fetch and display apartments
+    const { data: apartments } = await supabase
+      .from("apartments")
+      .select("*")
+      .eq("address_id", address.id)
+      .order("name");
+    
+    if (apartments && apartments.length > 0) {
+      // Apartments section container
+      const aptSectionDiv = document.createElement("div");
+      aptSectionDiv.style.marginBottom = "8px";
+      aptSectionDiv.style.border = "1px solid #e5e7eb";
+      aptSectionDiv.style.borderRadius = "6px";
+      aptSectionDiv.style.overflow = "hidden";
+      
+      // Header (collapsible)
+      const aptHeaderDiv = document.createElement("div");
+      aptHeaderDiv.style.fontSize = "12px";
+      aptHeaderDiv.style.fontWeight = "600";
+      aptHeaderDiv.style.padding = "8px";
+      aptHeaderDiv.style.backgroundColor = "#f9fafb";
+      aptHeaderDiv.style.cursor = "pointer";
+      aptHeaderDiv.style.display = "flex";
+      aptHeaderDiv.style.justifyContent = "space-between";
+      aptHeaderDiv.style.alignItems = "center";
+      aptHeaderDiv.style.userSelect = "none";
+      
+      const aptHeaderText = document.createElement("span");
+      aptHeaderText.textContent = `🏢 Appartements (${apartments.length})`;
+      aptHeaderDiv.appendChild(aptHeaderText);
+      
+      const aptHeaderIcon = document.createElement("span");
+      aptHeaderIcon.textContent = "▼";
+      aptHeaderIcon.style.fontSize = "10px";
+      aptHeaderDiv.appendChild(aptHeaderIcon);
+      
+      // Content (collapsible)
+      const aptContentDiv = document.createElement("div");
+      aptContentDiv.style.display = "none";
+      aptContentDiv.style.maxHeight = "200px";
+      aptContentDiv.style.overflowY = "auto";
+      aptContentDiv.style.padding = "8px";
+      aptContentDiv.style.backgroundColor = "#ffffff";
+      
+      apartments.forEach((apt, index) => {
+        const aptItemDiv = document.createElement("div");
+        aptItemDiv.style.padding = "6px 8px";
+        aptItemDiv.style.borderRadius = "4px";
+        aptItemDiv.style.backgroundColor = "#f9fafb";
+        aptItemDiv.style.marginBottom = index < apartments.length - 1 ? "6px" : "0";
+        
+        // Apartment name
+        const aptNameDiv = document.createElement("div");
+        aptNameDiv.style.fontSize = "11px";
+        aptNameDiv.style.fontWeight = "600";
+        aptNameDiv.style.marginBottom = "4px";
+        aptNameDiv.textContent = `🚪 ${apt.name}`;
+        aptItemDiv.appendChild(aptNameDiv);
+        
+        // Status badge
+        const statusConfig = STATUS_CONFIG[apt.status as keyof typeof STATUS_CONFIG];
+        if (statusConfig) {
+          const statusBadge = document.createElement("span");
+          statusBadge.style.display = "inline-flex";
+          statusBadge.style.alignItems = "center";
+          statusBadge.style.gap = "4px";
+          statusBadge.style.fontSize = "10px";
+          statusBadge.style.fontWeight = "500";
+          statusBadge.style.padding = "3px 8px";
+          statusBadge.style.borderRadius = "4px";
+          statusBadge.style.backgroundColor = `${statusConfig.color}15`;
+          statusBadge.style.color = statusConfig.color;
+          statusBadge.style.border = `1px solid ${statusConfig.color}40`;
+          statusBadge.textContent = statusConfig.label;
+          aptItemDiv.appendChild(statusBadge);
+        }
+        
+        // Observations (if any)
+        if (apt.observations) {
+          const aptObsDiv = document.createElement("div");
+          aptObsDiv.style.fontSize = "10px";
+          aptObsDiv.style.color = "#6b7280";
+          aptObsDiv.style.fontStyle = "italic";
+          aptObsDiv.style.marginTop = "4px";
+          aptObsDiv.style.lineHeight = "1.3";
+          aptObsDiv.textContent = apt.observations;
+          aptItemDiv.appendChild(aptObsDiv);
+        }
+        
+        aptContentDiv.appendChild(aptItemDiv);
+      });
+      
+      // Toggle functionality
+      let isOpen = false;
+      aptHeaderDiv.addEventListener("click", () => {
+        isOpen = !isOpen;
+        aptContentDiv.style.display = isOpen ? "block" : "none";
+        aptHeaderIcon.textContent = isOpen ? "▲" : "▼";
+      });
+      
+      aptSectionDiv.appendChild(aptHeaderDiv);
+      aptSectionDiv.appendChild(aptContentDiv);
+      container.appendChild(aptSectionDiv);
+    } else {
+      // No apartments message
+      const emptyDiv = document.createElement("div");
+      emptyDiv.style.fontSize = "11px";
+      emptyDiv.style.color = "#9ca3af";
+      emptyDiv.style.fontStyle = "italic";
+      emptyDiv.style.padding = "8px";
+      emptyDiv.style.marginBottom = "8px";
+      emptyDiv.style.backgroundColor = "#f9fafb";
+      emptyDiv.style.borderRadius = "6px";
+      emptyDiv.style.border = "1px solid #e5e7eb";
+      emptyDiv.textContent = "Aucun appartement ajouté";
+      container.appendChild(emptyDiv);
+    }
   }
 
   // Status label
