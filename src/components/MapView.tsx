@@ -1039,8 +1039,8 @@ export default function MapView() {
 
       // Lazy load popup with interactive content only when clicked (not in lasso/add mode)
       if (!lassoMode && !addMode) {
-        marker.on('popupopen', () => {
-          const popupContent = createPopupContent(address, handleStatusChange, address.latitude, address.longitude);
+        marker.on('popupopen', async () => {
+          const popupContent = await createPopupContent(address, handleStatusChange, address.latitude, address.longitude);
           marker.setPopupContent(popupContent);
         });
         marker.bindPopup('', {
