@@ -826,7 +826,7 @@ export default function MapView() {
   useEffect(() => {
     fetchAddresses();
 
-    const channel = supabase
+    const addressesChannel = supabase
       .channel("addresses-changes")
       .on(
         "postgres_changes",
@@ -841,8 +841,25 @@ export default function MapView() {
       )
       .subscribe();
 
+    // Subscription pour les changements d'appartements
+    const apartmentsChannel = supabase
+      .channel("apartments-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "apartments",
+        },
+        () => {
+          fetchAddresses(); // Rafraîchir les adresses quand un appartement change
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(addressesChannel);
+      supabase.removeChannel(apartmentsChannel);
     };
   }, []);
 
