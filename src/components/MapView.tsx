@@ -726,6 +726,73 @@ export default function MapView() {
     }
   };
  
+  // Unified icon creation to keep markers consistent (round + building badge)
+  const createMarkerIcon = (addr: {
+    status: string;
+    street_number?: string | null;
+    is_building?: boolean | null;
+    apartment_count?: number | null;
+  }, isSelected: boolean, showNumbersFlag: boolean) => {
+    const statusConfig = STATUS_CONFIG[addr.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
+    const color = statusConfig.color;
+    const textColor = getContrastingTextColor(color);
+
+    const apartmentCount = addr.apartment_count ?? 0;
+    const isBuilding = (addr.is_building === true) || apartmentCount > 0;
+
+    // 54px for buildings, 36px otherwise
+    const markerSize = isBuilding ? 54 : 36;
+
+    const streetNumber = showNumbersFlag ? (addr.street_number || '') : '';
+
+    return L.divIcon({
+      className: "custom-marker",
+      html: `<div style="
+        width: ${markerSize}px;
+        height: ${markerSize}px;
+        background-color: ${color};
+        border: 3px solid white;
+        border-radius: 50%;
+        ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
+        cursor: pointer;
+        transition: transform 0.2s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: ${isBuilding ? '18px' : '13px'};
+        font-weight: 700;
+        color: ${textColor};
+        text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3);
+        line-height: 1;
+        position: relative;
+      ">
+        ${isBuilding 
+          ? `<div style="font-size: 24px;">🏢</div>
+             <div style="
+               position: absolute;
+               bottom: -8px;
+               right: -8px;
+               background: white;
+               color: #333;
+               border-radius: 50%;
+               width: 20px;
+               height: 20px;
+               display: flex;
+               align-items: center;
+               justify-content: center;
+               font-size: 10px;
+               font-weight: 700;
+               box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+             ">${apartmentCount}</div>`
+          : `${streetNumber}`
+        }
+      </div>`,
+      iconSize: [markerSize, markerSize],
+      iconAnchor: [markerSize / 2, markerSize / 2],
+    });
+  };
+
   const handleDeleteSelected = async () => {
     console.log("Deleting addresses:", selectedAddresses);
     try {
@@ -1180,36 +1247,8 @@ export default function MapView() {
     Object.entries(markersMapRef.current).forEach(([id, marker]) => {
       const addr = addresses.find((a) => a.id === id);
       if (!addr) return;
-      const statusConfig = STATUS_CONFIG[addr.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
-      const color = statusConfig.color;
       const isSelected = selectedAddresses.includes(id);
-      const isManuallyAdded = !addr.csv_data;
-      const textColor = getContrastingTextColor(color);
-      const streetNumber = showNumbers ? (addr.street_number || '') : '';
-      
-      const icon = L.divIcon({
-        className: "custom-marker",
-        html: `<div style="
-          width: 36px;
-          height: 36px;
-          background-color: ${color};
-          border: 3px solid white;
-          border-radius: ${isManuallyAdded ? '4px' : '50%'};
-          ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
-          cursor: pointer;
-          transition: transform 0.2s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 13px;
-          font-weight: 700;
-          color: ${textColor};
-          text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3);
-          line-height: 1;
-        ">${streetNumber}</div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
-      });
+      const icon = createMarkerIcon(addr, isSelected, showNumbers);
       marker.setIcon(icon);
     });
   }, [selectedAddresses, addresses, showNumbers]);
