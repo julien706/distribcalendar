@@ -8,7 +8,7 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import "leaflet.markercluster";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { createPopupContent } from "./MapPopup";
+import { createAddressPopupContent, createBuildingPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
 import { Navigation, Lasso, X, Trash2, MapPin, Layers, Route, Hexagon, Maximize, Target } from "lucide-react";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
@@ -861,6 +861,11 @@ export default function MapView() {
     });
   }, [zones, showZones]);
 
+  // Callback for invalidating React Query
+  const handleDataUpdate = () => {
+    queryClient.invalidateQueries({ queryKey: ['addresses'] });
+  };
+
   // Memoize filtered addresses to avoid recalculation
   const filteredAddresses = useMemo(() => {
     return addresses.filter((addr) => statusFilter.includes(addr.status as StatusType));
@@ -1047,17 +1052,33 @@ export default function MapView() {
       // Lazy load popup with interactive content only when clicked (not in lasso/add mode)
       if (!lassoMode && !addMode) {
         marker.on('popupopen', async () => {
-          const popupContent = await createPopupContent(
-            address, 
-            handleStatusChange, 
-            address.latitude, 
-            address.longitude,
-            () => {
-              // Open apartment manager
-              setSelectedBuildingAddress(address);
-              setShowApartmentManager(true);
-            }
-          );
+          let popupContent: HTMLElement;
+          
+          // Check if it's a building
+          if (address.is_building) {
+            // Popup for building
+            popupContent = await createBuildingPopupContent(
+              address,
+              address.latitude,
+              address.longitude,
+              () => {
+                // Open apartment manager
+                setSelectedBuildingAddress(address);
+                setShowApartmentManager(true);
+              },
+              handleDataUpdate
+            );
+          } else {
+            // Popup for normal address
+            popupContent = await createAddressPopupContent(
+              address,
+              handleStatusChange,
+              address.latitude,
+              address.longitude,
+              handleDataUpdate
+            );
+          }
+          
           marker.setPopupContent(popupContent);
         });
         marker.bindPopup('', {
