@@ -39,10 +39,11 @@ export async function createAddressPopupContent(
 
   // Title
   const title = document.createElement("strong");
-  title.style.fontSize = "14px";
+  title.style.fontSize = "13px";
   title.style.display = "block";
   title.style.marginBottom = "2px";
   title.style.fontWeight = "600";
+  title.style.lineHeight = "1.3";
   title.textContent = `${address.street_number || ""} ${address.street_name}`;
   container.appendChild(title);
 
@@ -85,7 +86,7 @@ export async function createAddressPopupContent(
     const config = STATUS_CONFIG[statusKey as keyof typeof STATUS_CONFIG];
     const btn = document.createElement("button");
     btn.style.padding = "12px 8px";
-    btn.style.fontSize = "11px";
+    btn.style.fontSize = "10px";
     btn.style.border = `2px solid ${config.color}`;
     btn.style.borderRadius = "8px";
     btn.style.cursor = "pointer";
@@ -222,7 +223,7 @@ export async function createAddressPopupContent(
   convertBtn.style.borderRadius = "6px";
   convertBtn.style.cursor = "pointer";
   convertBtn.style.fontWeight = "500";
-  convertBtn.style.fontSize = "12px";
+  convertBtn.style.fontSize = "11px";
   convertBtn.style.transition = "all 0.2s";
   
   convertBtn.addEventListener("mouseenter", () => {
@@ -271,7 +272,7 @@ export async function createAddressPopupContent(
   navBtn.style.textDecoration = "none";
   navBtn.style.borderRadius = "8px";
   navBtn.style.fontWeight = "600";
-  navBtn.style.fontSize = "14px";
+  navBtn.style.fontSize = "13px";
   navBtn.style.marginBottom = "8px";
   navBtn.innerHTML = "📍 Naviguer";
   container.appendChild(navBtn);
@@ -428,10 +429,11 @@ export async function createBuildingPopupContent(
 
   // Title
   const title = document.createElement("strong");
-  title.style.fontSize = "14px";
+  title.style.fontSize = "13px";
   title.style.display = "block";
   title.style.marginBottom = "2px";
   title.style.fontWeight = "600";
+  title.style.lineHeight = "1.3";
   title.textContent = `${address.street_number || ""} ${address.street_name}`;
   container.appendChild(title);
 
@@ -455,7 +457,7 @@ export async function createBuildingPopupContent(
 
   // Building badge
   const buildingDiv = document.createElement("div");
-  buildingDiv.style.fontSize = "12px";
+  buildingDiv.style.fontSize = "11px";
   buildingDiv.style.color = "#059669";
   buildingDiv.style.fontWeight = "600";
   buildingDiv.style.marginBottom = "8px";
@@ -710,7 +712,7 @@ export async function createBuildingPopupContent(
   manageBtn.style.borderRadius = "6px";
   manageBtn.style.cursor = "pointer";
   manageBtn.style.fontWeight = "600";
-  manageBtn.style.fontSize = "12px";
+  manageBtn.style.fontSize = "11px";
   
   manageBtn.addEventListener("click", () => {
     onManageApartments();
@@ -718,47 +720,67 @@ export async function createBuildingPopupContent(
   
   container.appendChild(manageBtn);
 
-  // Remove building status button (only if no apartments)
-  if (!apartments || apartments.length === 0) {
-    const removeBtn = document.createElement("button");
-    removeBtn.textContent = "❌ Retirer le statut immeuble";
-    removeBtn.style.width = "100%";
-    removeBtn.style.padding = "8px";
-    removeBtn.style.marginBottom = "8px";
-    removeBtn.style.backgroundColor = "#EF4444";
-    removeBtn.style.color = "white";
-    removeBtn.style.border = "none";
-    removeBtn.style.borderRadius = "6px";
-    removeBtn.style.cursor = "pointer";
-    removeBtn.style.fontWeight = "600";
-    removeBtn.style.fontSize = "12px";
+  // Convert back to normal address button (always visible)
+  const hasApartments = apartments && apartments.length > 0;
+  const removeBtn = document.createElement("button");
+  removeBtn.textContent = hasApartments 
+    ? `⚠️ Convertir en maison (${apartments.length} apt)` 
+    : "❌ Retirer le statut immeuble";
+  removeBtn.style.width = "100%";
+  removeBtn.style.padding = "8px";
+  removeBtn.style.marginBottom = "8px";
+  removeBtn.style.backgroundColor = hasApartments ? "#F59E0B" : "#EF4444";
+  removeBtn.style.color = "white";
+  removeBtn.style.border = "none";
+  removeBtn.style.borderRadius = "6px";
+  removeBtn.style.cursor = "pointer";
+  removeBtn.style.fontWeight = "600";
+  removeBtn.style.fontSize = "11px";
+  
+  removeBtn.addEventListener("click", async () => {
+    const confirmMessage = hasApartments
+      ? `⚠️ ATTENTION !\n\nCette action va supprimer définitivement les ${apartments.length} appartement(s) de cet immeuble et le reconvertir en maison normale.\n\nÊtes-vous sûr de vouloir continuer ?`
+      : "Retirer le statut immeuble ?";
     
-    removeBtn.addEventListener("click", async () => {
-      if (!confirm("Retirer le statut immeuble ?")) return;
-      
-      try {
-        const { error } = await supabase
-          .from("addresses")
-          .update({ 
-            is_building: false,
-            building_name: null,
-            apartment_count: null 
-          })
-          .eq("id", address.id);
-
-        if (error) throw error;
+    if (!confirm(confirmMessage)) return;
+    
+    try {
+      // Step 1: Delete all apartments if any exist
+      if (hasApartments) {
+        const { error: deleteError } = await supabase
+          .from("apartments")
+          .delete()
+          .eq("address_id", address.id);
         
-        toast.success("Statut immeuble retiré !");
-        onUpdate();
-        
-      } catch (error) {
-        console.error("Error:", error);
-        toast.error("Erreur lors de la suppression");
+        if (deleteError) throw deleteError;
       }
-    });
-    
-    container.appendChild(removeBtn);
-  }
+      
+      // Step 2: Remove building status
+      const { error: updateError } = await supabase
+        .from("addresses")
+        .update({ 
+          is_building: false,
+          building_name: null,
+          apartment_count: null 
+        })
+        .eq("id", address.id);
+
+      if (updateError) throw updateError;
+      
+      const message = hasApartments 
+        ? `Immeuble reconverti en maison (${apartments.length} appartement(s) supprimé(s))` 
+        : "Statut immeuble retiré !";
+      
+      toast.success(message);
+      onUpdate();
+      
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Erreur lors de la conversion");
+    }
+  });
+  
+  container.appendChild(removeBtn);
 
   // Navigate button
   const navBtn = document.createElement("a");
@@ -772,7 +794,7 @@ export async function createBuildingPopupContent(
   navBtn.style.textDecoration = "none";
   navBtn.style.borderRadius = "6px";
   navBtn.style.fontWeight = "600";
-  navBtn.style.fontSize = "12px";
+  navBtn.style.fontSize = "11px";
   navBtn.textContent = "📍 Naviguer";
   container.appendChild(navBtn);
 
