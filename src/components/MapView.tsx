@@ -84,6 +84,8 @@ export default function MapView() {
     return saved !== null ? saved === 'true' : true;
   });
   const [isLocating, setIsLocating] = useState(false);
+  const [gpsTracking, setGpsTracking] = useState(false);
+  const watchIdRef = useRef<number | null>(null);
   const [lassoMode, setLassoMode] = useState(false);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -241,6 +243,9 @@ export default function MapView() {
     }
 
     return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
       if (drawControlRef.current) {
         map.removeControl(drawControlRef.current);
       }
@@ -325,59 +330,79 @@ export default function MapView() {
   const handleGeolocate = () => {
     if (!mapRef.current) return;
 
+    // Si le suivi est actif, le désactiver
+    if (gpsTracking) {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setGpsTracking(false);
+      toast.info("Suivi GPS désactivé");
+      return;
+    }
+
+    // Sinon, activer le suivi continu
     setIsLocating(true);
 
     if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
+      const watchId = navigator.geolocation.watchPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
 
-          // Remove previous user location marker
+          // Mettre à jour le marqueur utilisateur
           if (userLocationMarkerRef.current) {
-            userLocationMarkerRef.current.remove();
+            userLocationMarkerRef.current.setLatLng([latitude, longitude]);
+          } else {
+            const userIcon = L.divIcon({
+              className: "user-location-marker",
+              html: `<div style="
+                width: 20px;
+                height: 20px;
+                background-color: #3b82f6;
+                border: 4px solid white;
+                border-radius: 50%;
+                box-shadow: 0 0 15px rgba(59, 130, 246, 0.8);
+              "></div>`,
+              iconSize: [20, 20],
+              iconAnchor: [10, 10],
+            });
+
+            const marker = L.marker([latitude, longitude], { icon: userIcon })
+              .bindPopup("<strong>Votre position (suivi actif)</strong>")
+              .addTo(mapRef.current!);
+
+            userLocationMarkerRef.current = marker;
           }
 
-          // Create custom blue marker for user location
-          const userIcon = L.divIcon({
-            className: "user-location-marker",
-            html: `<div style="
-              width: 16px;
-              height: 16px;
-              background-color: #3b82f6;
-              border: 3px solid white;
-              border-radius: 50%;
-              box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
-            "></div>`,
-            iconSize: [16, 16],
-            iconAnchor: [8, 8],
-          });
-
-          // Add user location marker
-          const marker = L.marker([latitude, longitude], { icon: userIcon })
-            .bindPopup("<strong>Votre position</strong>")
-            .addTo(mapRef.current!);
-
-          userLocationMarkerRef.current = marker;
           setUserLocation([latitude, longitude]);
 
-          // Center map on user location, keeping current zoom
-          const currentZoom = mapRef.current.getZoom();
-          mapRef.current.setView([latitude, longitude], currentZoom);
+          // Centrer la carte sur la position SANS dézoomer
+          const currentZoom = mapRef.current!.getZoom();
+          mapRef.current!.setView([latitude, longitude], currentZoom, {
+            animate: true,
+            duration: 0.5
+          });
 
-          toast.success("Position trouvée");
-          setIsLocating(false);
+          if (!gpsTracking) {
+            setGpsTracking(true);
+            setIsLocating(false);
+            toast.success("Suivi GPS activé");
+          }
         },
         (error) => {
           console.error("Geolocation error:", error);
-          toast.error("Impossible d'obtenir votre position");
+          toast.error("Impossible de suivre votre position");
           setIsLocating(false);
+          setGpsTracking(false);
         },
         {
           enableHighAccuracy: true,
-          timeout: 5000,
+          timeout: 10000,
           maximumAge: 0,
         }
       );
+
+      watchIdRef.current = watchId;
     } else {
       toast.error("Géolocalisation non supportée");
       setIsLocating(false);
@@ -867,33 +892,43 @@ export default function MapView() {
 
       // Convert coordinates back to LatLng format
       const latlngs: [number, number][] = zone.boundary_coordinates.map(coord => [coord[1], coord[0]]);
-
+      
+      // Create non-interactive polygon (background)
       const polygon = L.polygon(latlngs, {
         color: zone.color,
         fillColor: zone.color,
-        fillOpacity: 0.2,
-        weight: 2,
+        fillOpacity: 0.15,  // Plus transparent pour être en arrière-plan
+        weight: 1.5,        // Bordure plus fine
+        opacity: 0.6,       // Bordure plus transparente
+        interactive: false, // NON CLIQUABLE
+        pane: 'tilePane'    // Placer dans le pane des tuiles (arrière-plan)
       });
 
-      polygon.bindPopup(`<strong>${zone.name}</strong>`, { className: "zone-popup" });
-      
-      // Add click event to edit zone (only for admins)
-      if (isAdmin) {
-        polygon.on('click', () => {
-          setEditingZone(zone);
-          setShowEditZone(true);
-        });
-        polygon.on('mouseover', function() {
-          this.setStyle({ fillOpacity: 0.4, weight: 3 });
-        });
-        polygon.on('mouseout', function() {
-          this.setStyle({ fillOpacity: 0.2, weight: 2 });
-        });
+      // Ajouter un tooltip permanent pour voir le nom de la zone
+      if (zone.name) {
+        const bounds = polygon.getBounds();
+        const center = bounds.getCenter();
+        
+        L.tooltip({
+          permanent: true,
+          direction: 'center',
+          className: 'zone-label',
+          interactive: false
+        })
+          .setContent(`<span style="
+            font-size: 11px;
+            font-weight: 600;
+            color: ${zone.color};
+            text-shadow: 1px 1px 2px white, -1px -1px 2px white;
+            pointer-events: none;
+          ">${zone.name}</span>`)
+          .setLatLng(center)
+          .addTo(zonesLayerRef.current!);
       }
       
       polygon.addTo(zonesLayerRef.current!);
     });
-  }, [zones, showZones]);
+  }, [zones, showZones, isAdmin]);
 
   // Memoize filtered addresses to avoid recalculation
   const filteredAddresses = useMemo(() => {
@@ -1166,6 +1201,14 @@ export default function MapView() {
     <div className="relative w-full h-full">
       <div ref={mapContainerRef} className="absolute inset-0" />
       
+      {/* Indicateur de suivi GPS actif */}
+      {gpsTracking && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-pulse">
+          <Target className="h-4 w-4" />
+          <span className="text-sm font-medium">Suivi GPS actif</span>
+        </div>
+      )}
+      
       {/* Closest Address Button - Bottom Left */}
       <div className="absolute bottom-20 left-3 z-[12000] pointer-events-auto">
         <Button
@@ -1297,14 +1340,28 @@ export default function MapView() {
           onClick={handleGeolocate}
           disabled={isLocating}
           size="icon"
-          className="h-12 w-12 rounded-full shadow-lg touch-manipulation"
-          title="Ma position"
+          variant={gpsTracking ? "default" : "outline"}
+          className={`h-12 w-12 rounded-full shadow-lg touch-manipulation ${
+            gpsTracking ? "ring-2 ring-blue-400 ring-offset-2" : ""
+          }`}
+          title={gpsTracking ? "Suivi GPS actif - Cliquer pour désactiver" : "Activer le suivi GPS"}
         >
-          <Navigation className={`h-5 w-5 ${isLocating ? "animate-pulse" : ""}`} />
+          <Target className={`h-5 w-5 ${gpsTracking ? "animate-pulse text-white" : isLocating ? "animate-pulse" : ""}`} />
         </Button>
         <Button
           onClick={() => {
             if (!mapRef.current || addresses.length === 0) return;
+            
+            // Si suivi GPS actif, désactiver d'abord
+            if (gpsTracking) {
+              if (watchIdRef.current !== null) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+                watchIdRef.current = null;
+              }
+              setGpsTracking(false);
+              toast.info("Suivi GPS désactivé");
+            }
+            
             const bounds = L.latLngBounds(addresses.map(addr => [addr.latitude, addr.longitude]));
             mapRef.current.fitBounds(bounds, { padding: [50, 50] });
             toast.success("Vue d'ensemble du secteur");
