@@ -16,14 +16,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { MapPin, RefreshCw, Search } from "lucide-react";
+import { MapPin, RefreshCw, Search, Building2, Home } from "lucide-react";
 import { toast } from "sonner";
 import { STATUS_CONFIG } from "@/lib/statusConfig";
 import StatisticsCard from "./StatisticsCard";
 import { Input } from "./ui/input";
+import { useAddressesWithApartments } from "@/hooks/useAddressesWithApartments";
 
-type Address = {
+type AddressOrApartment = {
   id: string;
+  type: 'address' | 'apartment';
+  // Champs communs
   street_name: string;
   street_number: string | null;
   city: string | null;
@@ -32,6 +35,13 @@ type Address = {
   status: string;
   observations: string | null;
   csv_data: any;
+  // Champs spécifiques aux appartements
+  apartment_name?: string;
+  building_name?: string | null;
+  parent_address_id?: string;
+  // Champs spécifiques aux adresses
+  is_building?: boolean | null;
+  apartment_count?: number | null;
 };
 
 const STATUS_VARIANTS = {
@@ -43,9 +53,10 @@ const STATUS_VARIANTS = {
   uninhabited: "secondary",
 } as const;
 
-export default function AddressList({ onSelectAddress }: { onSelectAddress: (address: Address) => void }) {
+export default function AddressList({ onSelectAddress }: { onSelectAddress: (address: any) => void }) {
   const PAGE_SIZE = 100;
-  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addresses, setAddresses] = useState<AddressOrApartment[]>([]);
+  const { data: stats } = useAddressesWithApartments();
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited" | null>(null);
   const [streetFilter, setStreetFilter] = useState<string | null>(null);
@@ -133,52 +144,66 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
   };
 
   const fetchTotalCount = async () => {
-    let query = supabase.from("addresses").select("*", { count: "exact", head: true });
+    // Compter les adresses normales (pas des immeubles)
+    let addressQuery = supabase
+      .from("addresses")
+      .select("*", { count: "exact", head: true })
+      .eq("is_building", false);
 
-    if (filter) {
-      query = query.eq("status", filter);
-    }
-
-    if (streetFilter) {
-      query = query.eq("street_name", streetFilter);
-    }
-
-    if (cityFilter) {
-      query = query.eq("city", cityFilter);
-    }
-
+    if (filter) addressQuery = addressQuery.eq("status", filter);
+    if (streetFilter) addressQuery = addressQuery.eq("street_name", streetFilter);
+    if (cityFilter) addressQuery = addressQuery.eq("city", cityFilter);
     if (debouncedSearch) {
-      query = query.or(`street_name.ilike.%${debouncedSearch}%,street_number.ilike.%${debouncedSearch}%`);
+      addressQuery = addressQuery.or(`street_name.ilike.%${debouncedSearch}%,street_number.ilike.%${debouncedSearch}%`);
     }
 
-    const { count, error } = await query;
+    const { count: normalCount } = await addressQuery;
 
-    if (!error && count !== null) {
-      setTotalCount(count);
-    }
+    // Compter les appartements des immeubles
+    let apartmentQuery = supabase
+      .from('apartments')
+      .select('id, address_id, status, addresses!inner(street_name, city)', { count: "exact", head: true });
+
+    if (filter) apartmentQuery = apartmentQuery.eq("status", filter);
+    if (streetFilter) apartmentQuery = apartmentQuery.eq("addresses.street_name", streetFilter);
+    if (cityFilter) apartmentQuery = apartmentQuery.eq("addresses.city", cityFilter);
+
+    const { count: apartmentCount } = await apartmentQuery;
+
+    setTotalCount((normalCount || 0) + (apartmentCount || 0));
   };
 
   const fetchStatusCounts = async () => {
     const statuses = Object.keys(STATUS_CONFIG);
     const results = await Promise.all(
       statuses.map(async (s) => {
-        let q = supabase
+        // Compter adresses normales
+        let addressQuery = supabase
           .from("addresses")
           .select("*", { count: "exact", head: true })
+          .eq("status", s as any)
+          .eq("is_building", false);
+
+        if (streetFilter) addressQuery = addressQuery.eq("street_name", streetFilter);
+        if (cityFilter) addressQuery = addressQuery.eq("city", cityFilter);
+        if (debouncedSearch) {
+          addressQuery = addressQuery.or(`street_name.ilike.%${debouncedSearch}%,street_number.ilike.%${debouncedSearch}%`);
+        }
+
+        const { count: normalCount } = await addressQuery;
+
+        // Compter appartements
+        let apartmentQuery = supabase
+          .from('apartments')
+          .select('id, address_id, status, addresses!inner(street_name, city)', { count: "exact", head: true })
           .eq("status", s as any);
 
-        if (streetFilter) {
-          q = q.eq("street_name", streetFilter);
-        }
-        if (cityFilter) {
-          q = q.eq("city", cityFilter);
-        }
-        if (debouncedSearch) {
-          q = q.or(`street_name.ilike.%${debouncedSearch}%,street_number.ilike.%${debouncedSearch}%`);
-        }
+        if (streetFilter) apartmentQuery = apartmentQuery.eq("addresses.street_name", streetFilter);
+        if (cityFilter) apartmentQuery = apartmentQuery.eq("addresses.city", cityFilter);
 
-        const { count } = await q;
-        return [s, count || 0] as [string, number];
+        const { count: apartmentCount } = await apartmentQuery;
+
+        return [s, (normalCount || 0) + (apartmentCount || 0)] as [string, number];
       })
     );
 
@@ -191,32 +216,85 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     const start = currentPage * PAGE_SIZE;
     const end = start + PAGE_SIZE - 1;
 
-    let query = supabase.from("addresses").select("*").order("street_name").range(start, end);
+    // 1. Fetch addresses avec filtres
+    let addressQuery = supabase
+      .from("addresses")
+      .select("*")
+      .order("street_name")
+      .range(start, end);
 
-    if (filter) {
-      query = query.eq("status", filter);
-    }
-
-    if (streetFilter) {
-      query = query.eq("street_name", streetFilter);
-    }
-
-    if (cityFilter) {
-      query = query.eq("city", cityFilter);
-    }
-
+    if (streetFilter) addressQuery = addressQuery.eq("street_name", streetFilter);
+    if (cityFilter) addressQuery = addressQuery.eq("city", cityFilter);
     if (debouncedSearch) {
-      query = query.or(`street_name.ilike.%${debouncedSearch}%,street_number.ilike.%${debouncedSearch}%`);
+      addressQuery = addressQuery.or(`street_name.ilike.%${debouncedSearch}%,street_number.ilike.%${debouncedSearch}%`);
     }
 
-    const { data, error } = await query;
-
-    if (error) {
+    const { data: addressesData, error: addrError } = await addressQuery;
+    
+    if (addrError) {
       toast.error("Erreur lors du chargement des adresses");
-    } else {
-      setAddresses((prev) => (reset ? (data || []) : [...prev, ...(data || [])]));
-      setHasMore((data?.length || 0) === PAGE_SIZE);
+      if (reset) setLoading(false);
+      return;
     }
+
+    // 2. Fetch apartments pour ces adresses
+    const addressIds = addressesData?.map(a => a.id) || [];
+    const { data: apartmentsData } = await supabase
+      .from('apartments')
+      .select('*')
+      .in('address_id', addressIds);
+
+    // 3. Construire liste unifiée
+    const unifiedList: AddressOrApartment[] = [];
+
+    addressesData?.forEach(addr => {
+      if (addr.is_building) {
+        // Pour un immeuble, ajouter ses appartements
+        const buildingApartments = apartmentsData?.filter(apt => apt.address_id === addr.id) || [];
+        
+        buildingApartments.forEach(apt => {
+          // Appliquer filtre de statut
+          if (!filter || apt.status === filter) {
+            unifiedList.push({
+              id: apt.id,
+              type: 'apartment',
+              street_name: addr.street_name,
+              street_number: addr.street_number,
+              city: addr.city,
+              latitude: addr.latitude,
+              longitude: addr.longitude,
+              status: apt.status,
+              observations: apt.observations,
+              csv_data: addr.csv_data,
+              apartment_name: apt.name,
+              building_name: addr.building_name,
+              parent_address_id: addr.id,
+            });
+          }
+        });
+      } else {
+        // Pour une adresse normale, l'ajouter directement
+        if (!filter || addr.status === filter) {
+          unifiedList.push({
+            id: addr.id,
+            type: 'address',
+            street_name: addr.street_name,
+            street_number: addr.street_number,
+            city: addr.city,
+            latitude: addr.latitude,
+            longitude: addr.longitude,
+            status: addr.status,
+            observations: addr.observations,
+            csv_data: addr.csv_data,
+            is_building: addr.is_building,
+            apartment_count: addr.apartment_count,
+          });
+        }
+      }
+    });
+
+    setAddresses((prev) => (reset ? unifiedList : [...prev, ...unifiedList]));
+    setHasMore((addressesData?.length || 0) === PAGE_SIZE);
     if (reset) setLoading(false);
   };
 
@@ -234,7 +312,7 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
     fetchTotalCount();
     fetchStatusCounts();
 
-    const channel = supabase
+    const addressChannel = supabase
       .channel("addresses-list-changes")
       .on(
         "postgres_changes",
@@ -255,8 +333,28 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
       )
       .subscribe();
 
+    const apartmentChannel = supabase
+      .channel("apartments-list-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "apartments",
+        },
+        () => {
+          setPage(0);
+          setHasMore(true);
+          fetchAddresses(true);
+          fetchTotalCount();
+          fetchStatusCounts();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(addressChannel);
+      supabase.removeChannel(apartmentChannel);
     };
   }, [filter, streetFilter, cityFilter, debouncedSearch]);
 
@@ -272,7 +370,10 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
         </Button>
       </div>
 
-      <StatisticsCard totalAddresses={totalCount} statusCounts={statusCounts} />
+      <StatisticsCard 
+        totalAddresses={stats?.effectiveTotal || totalCount} 
+        statusCounts={stats?.statusCounts || statusCounts} 
+      />
 
       <div className="space-y-3">
         <div>
@@ -371,33 +472,65 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
         </div>
       ) : (
         <div className="space-y-2">
-          {addresses.map((address) => (
+          {addresses.map((item) => (
             <Card
-              key={address.id}
+              key={`${item.type}-${item.id}`}
               className="cursor-pointer hover:bg-accent/50 transition-colors touch-manipulation active:scale-[0.98]"
-              onClick={() => onSelectAddress(address)}
+              onClick={() => onSelectAddress(item)}
             >
               <CardHeader className="pb-3 px-3 py-3 sm:px-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-sm sm:text-base truncate">
-                      {address.street_number || ""} {address.street_name}
+                    <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+                      {/* Icône différenciée */}
+                      {item.type === 'apartment' ? (
+                        <Building2 className="h-4 w-4 shrink-0 text-primary" />
+                      ) : (
+                        <Home className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                      
+                      {/* Nom de l'adresse */}
+                      <span className="truncate">
+                        {item.street_number || ""} {item.street_name}
+                      </span>
+                      
+                      {/* Badge appartement */}
+                      {item.type === 'apartment' && item.apartment_name && (
+                        <Badge variant="outline" className="ml-1 text-xs shrink-0">
+                          {item.apartment_name}
+                        </Badge>
+                      )}
                     </CardTitle>
+                    
+                    {/* Nom du bâtiment pour les appartements */}
+                    {item.type === 'apartment' && item.building_name && (
+                      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                        <Building2 className="h-3 w-3" />
+                        {item.building_name}
+                      </div>
+                    )}
+                    
+                    {/* Ville et coordonnées */}
                     <div className="text-xs mt-1 space-y-0.5 text-muted-foreground">
-                      {address.city && (
+                      {item.city && (
                         <div className="truncate font-medium text-foreground/70">
-                          {address.city}
+                          {item.city}
                         </div>
                       )}
                       <div className="truncate">
                         <MapPin className="inline h-3 w-3 mr-1" />
-                        {address.latitude.toFixed(6)}, {address.longitude.toFixed(6)}
+                        {item.latitude.toFixed(6)}, {item.longitude.toFixed(6)}
                       </div>
                     </div>
                   </div>
-                  <Badge variant={STATUS_VARIANTS[address.status as keyof typeof STATUS_VARIANTS] || "secondary"} className="shrink-0 text-xs">
+                  
+                  {/* Badge de statut */}
+                  <Badge 
+                    variant={STATUS_VARIANTS[item.status as keyof typeof STATUS_VARIANTS] || "secondary"}
+                    className="shrink-0 text-xs"
+                  >
                     {(() => {
-                      const config = STATUS_CONFIG[address.status as keyof typeof STATUS_CONFIG];
+                      const config = STATUS_CONFIG[item.status as keyof typeof STATUS_CONFIG];
                       if (config) {
                         const Icon = config.icon;
                         return (
@@ -407,15 +540,15 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
                           </span>
                         );
                       }
-                      return address.status;
+                      return item.status;
                     })()}
                   </Badge>
                 </div>
               </CardHeader>
-              {address.observations && (
+              {item.observations && (
                 <CardContent className="pt-0 px-3 pb-3 sm:px-4">
                   <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
-                    {address.observations}
+                    {item.observations}
                   </p>
                 </CardContent>
               )}

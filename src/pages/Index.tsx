@@ -10,18 +10,22 @@ const MapView = lazy(() => import("@/components/MapView"));
 const AddressList = lazy(() => import("@/components/AddressList"));
 const AddressForm = lazy(() => import("@/components/AddressForm"));
 
-type Address = {
+type AddressOrApartment = {
   id: string;
+  type?: 'address' | 'apartment';
   street_name: string;
   street_number: string | null;
   latitude: number;
   longitude: number;
   status: string;
   observations: string | null;
+  apartment_name?: string;
+  building_name?: string | null;
+  parent_address_id?: string;
 };
 
 export default function Index() {
-  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState<AddressOrApartment | null>(null);
   const [activeTab, setActiveTab] = useState("map");
   const { user, loading } = useAuth();
   const navigate = useNavigate();
