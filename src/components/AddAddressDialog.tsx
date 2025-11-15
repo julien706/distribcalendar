@@ -4,11 +4,9 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
-import { Checkbox } from "./ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { addressSchema } from "@/lib/validationSchemas";
-import { Building2 } from "lucide-react";
 
 type AddAddressDialogProps = {
   open: boolean;
@@ -29,9 +27,6 @@ export default function AddAddressDialog({
   const [streetNumber, setStreetNumber] = useState("");
   const [city, setCity] = useState("");
   const [observations, setObservations] = useState("");
-  const [isBuilding, setIsBuilding] = useState(false);
-  const [buildingName, setBuildingName] = useState("");
-  const [apartmentCount, setApartmentCount] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingCity, setLoadingCity] = useState(false);
 
@@ -43,9 +38,6 @@ export default function AddAddressDialog({
       setStreetNumber("");
       setCity("");
       setObservations("");
-      setIsBuilding(false);
-      setBuildingName("");
-      setApartmentCount("");
       setLoading(false);
       
       // Fetch city from coordinates using reverse geocoding
@@ -85,10 +77,7 @@ export default function AddAddressDialog({
       latitude,
       longitude,
       observations: observations || undefined,
-      status: "pending" as const,
-      is_building: isBuilding,
-      building_name: isBuilding && buildingName ? buildingName : undefined,
-      apartment_count: isBuilding && apartmentCount ? parseInt(apartmentCount) : undefined
+      status: "pending" as const
     });
 
     if (!result.success) {
@@ -109,9 +98,6 @@ export default function AddAddressDialog({
           longitude: result.data.longitude,
           status: result.data.status,
           observations: result.data.observations || null,
-          is_building: result.data.is_building || false,
-          building_name: result.data.building_name || null,
-          apartment_count: result.data.apartment_count || null,
         })
         .select()
         .single();
@@ -188,50 +174,6 @@ export default function AddAddressDialog({
               {observations.length}/1000 caractères
             </p>
           </div>
-          
-          <div className="space-y-3 pt-2 border-t">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="is_building" 
-                checked={isBuilding}
-                onCheckedChange={(checked) => setIsBuilding(checked === true)}
-              />
-              <Label htmlFor="is_building" className="flex items-center gap-2 cursor-pointer">
-                <Building2 className="h-4 w-4" />
-                C'est un immeuble
-              </Label>
-            </div>
-            
-            {isBuilding && (
-              <div className="space-y-3 ml-6 animate-in fade-in-50 duration-200">
-                <div className="space-y-2">
-                  <Label htmlFor="building_name">Nom de l'immeuble (optionnel)</Label>
-                  <Input 
-                    id="building_name"
-                    value={buildingName}
-                    onChange={(e) => setBuildingName(e.target.value)}
-                    placeholder="Ex: Résidence Les Chênes"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="apartment_count">Nombre d'appartements estimé (optionnel)</Label>
-                  <Input 
-                    id="apartment_count"
-                    type="number"
-                    min="1"
-                    value={apartmentCount}
-                    onChange={(e) => setApartmentCount(e.target.value)}
-                    placeholder="Ex: 12"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Vous pourrez ajouter les appartements précis après création
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-          
           <div className="text-xs text-muted-foreground">
             Coordonnées: {latitude.toFixed(6)}, {longitude.toFixed(6)}
           </div>

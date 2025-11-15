@@ -9,9 +9,6 @@ type Address = {
   status: string;
   observations: string | null;
   city?: string | null;
-  is_building?: boolean;
-  building_name?: string | null;
-  apartment_count?: number | null;
 };
 
 const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
@@ -21,33 +18,28 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
   icon: config.icon,
 }));
 
-// Popup for normal addresses
-export async function createAddressPopupContent(
+export function createPopupContent(
   address: Address & { csv_data?: { commune_nom?: string } },
   onStatusChange: (id: string, newStatus: string) => void,
   latitude: number,
-  longitude: number,
-  onUpdate: () => void
+  longitude: number
 ) {
   const container = document.createElement("div");
   container.className = "map-popup-container";
-  container.style.padding = "10px";
+  container.style.padding = "12px";
   container.style.minWidth = "240px";
   container.style.maxWidth = "260px";
-  container.style.maxHeight = "400px";
-  container.style.overflowY = "auto";
 
   // Title
   const title = document.createElement("strong");
-  title.style.fontSize = "13px";
+  title.style.fontSize = "14px";
   title.style.display = "block";
   title.style.marginBottom = "2px";
   title.style.fontWeight = "600";
-  title.style.lineHeight = "1.3";
   title.textContent = `${address.street_number || ""} ${address.street_name}`;
   container.appendChild(title);
 
-  // City
+  // City (from manual entry or CSV)
   const cityName = address.city || address.csv_data?.commune_nom;
   if (cityName) {
     const cityDiv = document.createElement("div");
@@ -58,745 +50,353 @@ export async function createAddressPopupContent(
     container.appendChild(cityDiv);
   }
 
-  // Separator
-  const separator = document.createElement("hr");
-  separator.style.border = "none";
-  separator.style.borderTop = "1px solid #e5e7eb";
-  separator.style.margin = "8px 0";
-  container.appendChild(separator);
-
-  // "Changer le statut:" label
+  // Status label
   const statusLabel = document.createElement("div");
-  statusLabel.style.fontSize = "14px";
-  statusLabel.style.fontWeight = "600";
-  statusLabel.style.marginBottom = "8px";
+  statusLabel.style.fontSize = "11px";
+  statusLabel.style.marginBottom = "6px";
   statusLabel.style.color = "#6b7280";
+  statusLabel.style.fontWeight = "500";
   statusLabel.textContent = "Changer le statut:";
   container.appendChild(statusLabel);
 
-  // Quick status buttons (priority order: pending, done, retry_first, retry_second, refused, uninhabited, no_answer)
-  const quickStatusDiv = document.createElement("div");
-  quickStatusDiv.style.display = "grid";
-  quickStatusDiv.style.gridTemplateColumns = "repeat(3, 1fr)";
-  quickStatusDiv.style.gap = "8px";
-  quickStatusDiv.style.marginBottom = "12px";
+  // Status buttons grid
+  const buttonsGrid = document.createElement("div");
+  buttonsGrid.style.display = "grid";
+  buttonsGrid.style.gridTemplateColumns = "repeat(3, 1fr)";
+  buttonsGrid.style.gap = "6px";
+  buttonsGrid.style.marginBottom = "8px";
 
-  const priorityStatuses = ["pending", "done", "retry_first", "retry_second", "refused", "uninhabited", "no_answer"];
-  priorityStatuses.forEach((statusKey) => {
-    const config = STATUS_CONFIG[statusKey as keyof typeof STATUS_CONFIG];
-    const btn = document.createElement("button");
-    btn.style.padding = "12px 8px";
-    btn.style.fontSize = "10px";
-    btn.style.border = `2px solid ${config.color}`;
-    btn.style.borderRadius = "8px";
-    btn.style.cursor = "pointer";
-    btn.style.backgroundColor = address.status === statusKey ? config.color : "white";
-    btn.style.color = address.status === statusKey ? "white" : config.color;
-    btn.style.fontWeight = "600";
-    btn.style.textAlign = "center";
-    btn.style.transition = "all 0.2s";
-    btn.innerHTML = `${config.icon} ${config.label}`;
+  STATUS_OPTIONS.forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.style.display = "flex";
+    button.style.alignItems = "center";
+    button.style.justifyContent = "center";
+    button.style.gap = "4px";
+    button.style.padding = "6px 8px";
+    button.style.borderRadius = "6px";
+    button.style.border = address.status === option.value ? `2px solid ${option.color}` : "2px solid transparent";
+    button.style.backgroundColor = address.status === option.value ? `${option.color}15` : "#f9fafb";
+    button.style.color = option.color;
+    button.style.fontSize = "11px";
+    button.style.fontWeight = "500";
+    button.style.cursor = "pointer";
+    button.style.transition = "all 0.2s";
     
-    btn.addEventListener("mouseenter", () => {
-      if (address.status !== statusKey) {
-        btn.style.backgroundColor = config.color + "20";
+    // Create icon using Unicode or emoji representation
+    const iconSpan = document.createElement("span");
+    iconSpan.style.fontSize = "12px";
+    
+    // Map icon names to Unicode/emoji
+    const iconMap: Record<string, string> = {
+      pending: "⏱️",
+      done: "✅",
+      retry_first: "🔄",
+      retry_second: "🔄",
+      refused: "❌",
+      uninhabited: "🏠",
+      no_answer: "📵",
+    };
+    
+    iconSpan.textContent = iconMap[option.value] || "•";
+    button.appendChild(iconSpan);
+    
+    const label = document.createElement("span");
+    label.textContent = option.label;
+    button.appendChild(label);
+
+    button.addEventListener("mouseenter", () => {
+      if (address.status !== option.value) {
+        button.style.backgroundColor = `${option.color}08`;
+        button.style.transform = "scale(1.02)";
       }
     });
-    
-    btn.addEventListener("mouseleave", () => {
-      if (address.status !== statusKey) {
-        btn.style.backgroundColor = "white";
+
+    button.addEventListener("mouseleave", () => {
+      if (address.status !== option.value) {
+        button.style.backgroundColor = "#f9fafb";
+        button.style.transform = "scale(1)";
       }
     });
-    
-    btn.addEventListener("click", () => {
-      onStatusChange(address.id, statusKey);
+
+    button.addEventListener("click", async () => {
+      const newStatus = option.value as "pending" | "done" | "retry_first" | "retry_second" | "refused" | "uninhabited" | "no_answer";
+      
+      // Update button states
+      buttonsGrid.querySelectorAll("button").forEach((btn) => {
+        btn.style.border = "2px solid transparent";
+        btn.style.backgroundColor = "#f9fafb";
+      });
+      button.style.border = `2px solid ${option.color}`;
+      button.style.backgroundColor = `${option.color}15`;
+
+      const { error } = await supabase
+        .from("addresses")
+        .update({
+          status: newStatus,
+          last_visit_date: new Date().toISOString(),
+        })
+        .eq("id", address.id);
+
+      if (error) {
+        toast.error("Erreur lors de la mise à jour");
+      } else {
+        toast.success(`Statut mis à jour: ${option.label}`);
+        onStatusChange(address.id, newStatus);
+      }
     });
-    
-    quickStatusDiv.appendChild(btn);
+
+    buttonsGrid.appendChild(button);
   });
-  
-  container.appendChild(quickStatusDiv);
 
-  // Separator
-  const separator2 = document.createElement("hr");
-  separator2.style.border = "none";
-  separator2.style.borderTop = "1px solid #e5e7eb";
-  separator2.style.margin = "8px 0";
-  container.appendChild(separator2);
+  container.appendChild(buttonsGrid);
 
   // Observations section (collapsible)
-  const obsSection = document.createElement("div");
-  obsSection.style.marginBottom = "8px";
-  obsSection.style.border = "1px solid #e5e7eb";
-  obsSection.style.borderRadius = "6px";
-  obsSection.style.overflow = "hidden";
+  const obsContainer = document.createElement("div");
+  obsContainer.style.marginTop = "8px";
+  obsContainer.style.paddingTop = "8px";
+  obsContainer.style.borderTop = "1px solid #e5e7eb";
 
-  // Observations header (clickable)
   const obsHeader = document.createElement("div");
-  obsHeader.style.padding = "8px";
-  obsHeader.style.backgroundColor = "#f9fafb";
-  obsHeader.style.cursor = "pointer";
-  obsHeader.style.fontWeight = "600";
-  obsHeader.style.fontSize = "14px";
   obsHeader.style.display = "flex";
   obsHeader.style.justifyContent = "space-between";
   obsHeader.style.alignItems = "center";
-  obsHeader.style.userSelect = "none";
-  obsHeader.style.color = "#6b7280";
+  obsHeader.style.cursor = "pointer";
+  obsHeader.style.marginBottom = "6px";
 
-  const obsTitle = document.createElement("span");
-  obsTitle.textContent = "Observations";
-  obsHeader.appendChild(obsTitle);
+  const obsLabel = document.createElement("div");
+  obsLabel.style.fontSize = "11px";
+  obsLabel.style.color = "#6b7280";
+  obsLabel.style.fontWeight = "500";
+  const hasBadge = address.observations ? " 🔖" : "";
+  obsLabel.textContent = `Observations${hasBadge}`;
 
-  const obsIcon = document.createElement("span");
-  obsIcon.textContent = "▼";
-  obsIcon.style.fontSize = "10px";
-  obsHeader.appendChild(obsIcon);
+  const obsToggle = document.createElement("span");
+  obsToggle.style.fontSize = "14px";
+  obsToggle.textContent = "▼";
 
-  // Observations content
+  obsHeader.appendChild(obsLabel);
+  obsHeader.appendChild(obsToggle);
+  obsContainer.appendChild(obsHeader);
+
   const obsContent = document.createElement("div");
-  obsContent.style.padding = "8px";
-  let isObsOpen = true; // Open by default
-  obsContent.style.display = "block";
+  obsContent.style.display = "none";
+  obsContent.style.marginTop = "6px";
 
   const obsTextarea = document.createElement("textarea");
   obsTextarea.style.width = "100%";
-  obsTextarea.style.padding = "6px";
-  obsTextarea.style.fontSize = "12px";
-  obsTextarea.style.border = "1px solid #d1d5db";
+  obsTextarea.style.padding = "8px";
   obsTextarea.style.borderRadius = "6px";
-  obsTextarea.style.minHeight = "60px";
+  obsTextarea.style.border = "1px solid #d1d5db";
+  obsTextarea.style.fontSize = "12px";
+  obsTextarea.style.fontFamily = "inherit";
   obsTextarea.style.resize = "vertical";
+  obsTextarea.style.minHeight = "50px";
+  obsTextarea.placeholder = "Ajouter des observations...";
   obsTextarea.value = address.observations || "";
-  obsTextarea.placeholder = "Ajouter une observation...";
 
-  let obsTimeout: NodeJS.Timeout;
-  obsTextarea.addEventListener("input", (e) => {
-    clearTimeout(obsTimeout);
-    obsTimeout = setTimeout(async () => {
-      const newObs = (e.target as HTMLTextAreaElement).value;
-      try {
-        const { error } = await supabase
-          .from("addresses")
-          .update({ observations: newObs })
-          .eq("id", address.id);
-        
-        if (error) throw error;
-        toast.success("Observation mise à jour");
-      } catch (error) {
-        console.error("Error updating observations:", error);
-        toast.error("Erreur lors de la mise à jour");
+  let saveTimeout: NodeJS.Timeout;
+  obsTextarea.addEventListener("input", () => {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(async () => {
+      const { error } = await supabase
+        .from("addresses")
+        .update({
+          observations: obsTextarea.value.trim() || null,
+        })
+        .eq("id", address.id);
+
+      if (error) {
+        toast.error("Erreur lors de la sauvegarde");
+      } else {
+        toast.success("Observations sauvegardées");
       }
-    }, 500);
+    }, 1000);
   });
 
   obsContent.appendChild(obsTextarea);
+  obsContainer.appendChild(obsContent);
 
-  // Toggle observations collapsible
+  // Toggle observations visibility
+  let isObsOpen = false;
   obsHeader.addEventListener("click", () => {
     isObsOpen = !isObsOpen;
+    obsToggle.textContent = isObsOpen ? "▲" : "▼";
     obsContent.style.display = isObsOpen ? "block" : "none";
-    obsIcon.textContent = isObsOpen ? "▼" : "▶";
   });
 
-  obsSection.appendChild(obsHeader);
-  obsSection.appendChild(obsContent);
-  container.appendChild(obsSection);
+  container.appendChild(obsContainer);
 
-  // Separator
-  const separator3 = document.createElement("hr");
-  separator3.style.border = "none";
-  separator3.style.borderTop = "1px solid #e5e7eb";
-  separator3.style.margin = "8px 0";
-  container.appendChild(separator3);
+  // Navigation button
+  const navContainer = document.createElement("div");
+  navContainer.style.marginTop = "8px";
+  navContainer.style.paddingTop = "8px";
+  navContainer.style.borderTop = "1px solid #e5e7eb";
 
-  // Transform to building button (small button with icon)
-  const convertBtn = document.createElement("button");
-  convertBtn.innerHTML = "🏢 Transformer en immeuble";
-  convertBtn.style.width = "100%";
-  convertBtn.style.padding = "8px";
-  convertBtn.style.marginBottom = "8px";
-  convertBtn.style.backgroundColor = "white";
-  convertBtn.style.color = "#6b7280";
-  convertBtn.style.border = "1px solid #d1d5db";
-  convertBtn.style.borderRadius = "6px";
-  convertBtn.style.cursor = "pointer";
-  convertBtn.style.fontWeight = "500";
-  convertBtn.style.fontSize = "11px";
-  convertBtn.style.transition = "all 0.2s";
-  
-  convertBtn.addEventListener("mouseenter", () => {
-    convertBtn.style.backgroundColor = "#f9fafb";
-    convertBtn.style.borderColor = "#9ca3af";
+  const navButton = document.createElement("a");
+  navButton.href = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+  navButton.target = "_blank";
+  navButton.rel = "noopener noreferrer";
+  navButton.style.display = "flex";
+  navButton.style.alignItems = "center";
+  navButton.style.justifyContent = "center";
+  navButton.style.gap = "6px";
+  navButton.style.width = "100%";
+  navButton.style.padding = "8px 12px";
+  navButton.style.backgroundColor = "#3b82f6";
+  navButton.style.color = "white";
+  navButton.style.borderRadius = "6px";
+  navButton.style.textDecoration = "none";
+  navButton.style.fontSize = "13px";
+  navButton.style.fontWeight = "500";
+  navButton.style.cursor = "pointer";
+  navButton.style.transition = "background-color 0.2s";
+  navButton.textContent = "📍 Naviguer";
+
+  navButton.addEventListener("mouseenter", () => {
+    navButton.style.backgroundColor = "#2563eb";
   });
-  
-  convertBtn.addEventListener("mouseleave", () => {
-    convertBtn.style.backgroundColor = "white";
-    convertBtn.style.borderColor = "#d1d5db";
-  });
-  
-  convertBtn.addEventListener("click", async () => {
-    try {
-      const { error } = await supabase
-        .from("addresses")
-        .update({ 
-          is_building: true,
-          building_name: null,
-          apartment_count: 0 
-        })
-        .eq("id", address.id);
 
-      if (error) throw error;
-      
-      toast.success("Transformé en immeuble !");
-      onUpdate();
-      
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Erreur lors de la transformation");
+  navButton.addEventListener("mouseleave", () => {
+    navButton.style.backgroundColor = "#3b82f6";
+  });
+
+  navContainer.appendChild(navButton);
+  container.appendChild(navContainer);
+
+  // History section
+  const historyContainer = document.createElement("div");
+  historyContainer.style.marginTop = "8px";
+  historyContainer.style.paddingTop = "8px";
+  historyContainer.style.borderTop = "1px solid #e5e7eb";
+
+  const historyHeader = document.createElement("div");
+  historyHeader.style.display = "flex";
+  historyHeader.style.justifyContent = "space-between";
+  historyHeader.style.alignItems = "center";
+  historyHeader.style.cursor = "pointer";
+  historyHeader.style.marginBottom = "6px";
+
+  const historyLabel = document.createElement("div");
+  historyLabel.style.fontSize = "11px";
+  historyLabel.style.color = "#6b7280";
+  historyLabel.style.fontWeight = "500";
+  historyLabel.textContent = "Historique";
+
+  const historyToggle = document.createElement("span");
+  historyToggle.style.fontSize = "16px";
+  historyToggle.textContent = "▼";
+
+  historyHeader.appendChild(historyLabel);
+  historyHeader.appendChild(historyToggle);
+  historyContainer.appendChild(historyHeader);
+
+  const historyContent = document.createElement("div");
+  historyContent.style.display = "none";
+  historyContent.style.maxHeight = "200px";
+  historyContent.style.overflowY = "auto";
+  historyContent.style.fontSize = "11px";
+
+  // Toggle history visibility
+  let isHistoryOpen = false;
+  historyHeader.addEventListener("click", async () => {
+    isHistoryOpen = !isHistoryOpen;
+    historyToggle.textContent = isHistoryOpen ? "▲" : "▼";
+    historyContent.style.display = isHistoryOpen ? "block" : "none";
+
+    // Fetch history on first open
+    if (isHistoryOpen && historyContent.children.length === 0) {
+      const loadingDiv = document.createElement("div");
+      loadingDiv.textContent = "Chargement...";
+      loadingDiv.style.color = "#9ca3af";
+      loadingDiv.style.padding = "8px";
+      historyContent.appendChild(loadingDiv);
+
+      const { data: history, error } = await supabase
+        .from("address_status_history")
+        .select("*")
+        .eq("address_id", address.id)
+        .order("changed_at", { ascending: false });
+
+      historyContent.removeChild(loadingDiv);
+
+      if (error) {
+        const errorDiv = document.createElement("div");
+        errorDiv.textContent = "Erreur de chargement";
+        errorDiv.style.color = "#ef4444";
+        errorDiv.style.padding = "8px";
+        historyContent.appendChild(errorDiv);
+      } else if (!history || history.length === 0) {
+        const emptyDiv = document.createElement("div");
+        emptyDiv.textContent = "Aucun historique disponible";
+        emptyDiv.style.color = "#9ca3af";
+        emptyDiv.style.padding = "8px";
+        historyContent.appendChild(emptyDiv);
+      } else {
+        history.forEach((entry) => {
+          const entryDiv = document.createElement("div");
+          entryDiv.style.padding = "8px";
+          entryDiv.style.marginBottom = "6px";
+          entryDiv.style.backgroundColor = "#f9fafb";
+          entryDiv.style.borderRadius = "6px";
+          entryDiv.style.borderLeft = "3px solid #e5e7eb";
+
+          const date = new Date(entry.changed_at).toLocaleString("fr-FR", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          const oldStatusConfig = STATUS_CONFIG[entry.old_status as keyof typeof STATUS_CONFIG];
+          const newStatusConfig = STATUS_CONFIG[entry.new_status as keyof typeof STATUS_CONFIG];
+
+          const dateDiv = document.createElement("div");
+          dateDiv.style.fontWeight = "600";
+          dateDiv.style.color = "#374151";
+          dateDiv.style.marginBottom = "4px";
+          dateDiv.textContent = date;
+          entryDiv.appendChild(dateDiv);
+
+          // Create change display safely without innerHTML to prevent XSS
+          const changeDiv = document.createElement("div");
+          changeDiv.style.color = "#6b7280";
+          
+          const oldSpan = document.createElement("span");
+          oldSpan.style.color = oldStatusConfig?.color || "#6b7280";
+          oldSpan.textContent = oldStatusConfig?.label || entry.old_status;
+          
+          const arrowSpan = document.createElement("span");
+          arrowSpan.style.margin = "0 4px";
+          arrowSpan.textContent = "→";
+          
+          const newSpan = document.createElement("span");
+          newSpan.style.color = newStatusConfig?.color || "#6b7280";
+          newSpan.textContent = newStatusConfig?.label || entry.new_status;
+          
+          changeDiv.appendChild(oldSpan);
+          changeDiv.appendChild(arrowSpan);
+          changeDiv.appendChild(newSpan);
+          entryDiv.appendChild(changeDiv);
+
+          if (entry.new_observations && entry.new_observations !== entry.old_observations) {
+            const obsDiv = document.createElement("div");
+            obsDiv.style.marginTop = "4px";
+            obsDiv.style.fontStyle = "italic";
+            obsDiv.style.color = "#9ca3af";
+            obsDiv.textContent = `Note: ${entry.new_observations}`;
+            entryDiv.appendChild(obsDiv);
+          }
+
+          historyContent.appendChild(entryDiv);
+        });
+      }
     }
   });
-  
-  container.appendChild(convertBtn);
 
-  // Navigate button (big blue button)
-  const navBtn = document.createElement("a");
-  navBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-  navBtn.target = "_blank";
-  navBtn.style.display = "block";
-  navBtn.style.textAlign = "center";
-  navBtn.style.padding = "12px";
-  navBtn.style.backgroundColor = "#3B82F6";
-  navBtn.style.color = "white";
-  navBtn.style.textDecoration = "none";
-  navBtn.style.borderRadius = "8px";
-  navBtn.style.fontWeight = "600";
-  navBtn.style.fontSize = "13px";
-  navBtn.style.marginBottom = "8px";
-  navBtn.innerHTML = "📍 Naviguer";
-  container.appendChild(navBtn);
-
-  // Separator
-  const separator4 = document.createElement("hr");
-  separator4.style.border = "none";
-  separator4.style.borderTop = "1px solid #e5e7eb";
-  separator4.style.margin = "8px 0";
-  container.appendChild(separator4);
-
-  // Fetch and display history
-  const { data: history } = await supabase
-    .from("address_status_history")
-    .select("*")
-    .eq("address_id", address.id)
-    .order("changed_at", { ascending: false })
-    .limit(10);
-
-  if (history && history.length > 0) {
-    // History section (collapsible)
-    const historySection = document.createElement("div");
-    historySection.style.marginBottom = "8px";
-    historySection.style.border = "1px solid #e5e7eb";
-    historySection.style.borderRadius = "6px";
-    historySection.style.overflow = "hidden";
-
-    // Header (clickable)
-    const historyHeader = document.createElement("div");
-    historyHeader.style.padding = "8px";
-    historyHeader.style.backgroundColor = "#f9fafb";
-    historyHeader.style.cursor = "pointer";
-    historyHeader.style.fontWeight = "600";
-    historyHeader.style.fontSize = "14px";
-    historyHeader.style.display = "flex";
-    historyHeader.style.justifyContent = "space-between";
-    historyHeader.style.alignItems = "center";
-    historyHeader.style.userSelect = "none";
-    historyHeader.style.color = "#6b7280";
-
-    const historyTitle = document.createElement("span");
-    historyTitle.textContent = "Historique";
-    historyHeader.appendChild(historyTitle);
-
-    const historyIcon = document.createElement("span");
-    historyIcon.textContent = "▼";
-    historyIcon.style.fontSize = "10px";
-    historyHeader.appendChild(historyIcon);
-
-    // Content (list)
-    const historyContent = document.createElement("div");
-    historyContent.style.maxHeight = "200px";
-    historyContent.style.overflowY = "auto";
-    historyContent.style.padding = "6px";
-    let isHistoryOpen = true; // Open by default
-    historyContent.style.display = "block";
-
-    // Populate history entries
-    history.forEach((entry, index) => {
-      const entryDiv = document.createElement("div");
-      entryDiv.style.padding = "6px";
-      entryDiv.style.marginBottom = "4px";
-      entryDiv.style.backgroundColor = "#f9fafb";
-      entryDiv.style.borderRadius = "4px";
-      entryDiv.style.fontSize = "11px";
-
-      const oldConfig = entry.old_status ? STATUS_CONFIG[entry.old_status as keyof typeof STATUS_CONFIG] : null;
-      const newConfig = STATUS_CONFIG[entry.new_status as keyof typeof STATUS_CONFIG];
-
-      // Status change line
-      const statusLine = document.createElement("div");
-      statusLine.style.display = "flex";
-      statusLine.style.justifyContent = "space-between";
-      statusLine.style.alignItems = "center";
-      statusLine.style.marginBottom = "2px";
-
-      const statusChange = document.createElement("span");
-      if (oldConfig) {
-        statusChange.innerHTML = `<span style="color: ${oldConfig.color}">${oldConfig.label}</span> → <span style="color: ${newConfig.color}; font-weight: 600;">${newConfig.label}</span>`;
-      } else {
-        statusChange.innerHTML = `<span style="color: ${newConfig.color}; font-weight: 600;">${newConfig.label}</span>`;
-      }
-      statusLine.appendChild(statusChange);
-
-      // Date
-      const date = new Date(entry.changed_at);
-      const dateSpan = document.createElement("span");
-      dateSpan.style.color = "#6b7280";
-      dateSpan.style.fontSize = "10px";
-      dateSpan.textContent = date.toLocaleString("fr-FR", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-      statusLine.appendChild(dateSpan);
-
-      entryDiv.appendChild(statusLine);
-
-      // Observations (if changed)
-      if (entry.new_observations && entry.new_observations !== entry.old_observations) {
-        const obsDiv = document.createElement("div");
-        obsDiv.style.marginTop = "3px";
-        obsDiv.style.color = "#6b7280";
-        obsDiv.style.fontSize = "10px";
-        obsDiv.style.fontStyle = "italic";
-        obsDiv.textContent = `"${entry.new_observations}"`;
-        entryDiv.appendChild(obsDiv);
-      }
-
-      historyContent.appendChild(entryDiv);
-
-      // Separator between entries (except last)
-      if (index < history.length - 1) {
-        const sep = document.createElement("hr");
-        sep.style.border = "none";
-        sep.style.borderTop = "1px solid #e5e7eb";
-        sep.style.margin = "4px 0";
-        historyContent.appendChild(sep);
-      }
-    });
-
-    // Toggle collapsible
-    historyHeader.addEventListener("click", () => {
-      isHistoryOpen = !isHistoryOpen;
-      historyContent.style.display = isHistoryOpen ? "block" : "none";
-      historyIcon.textContent = isHistoryOpen ? "▼" : "▶";
-    });
-
-    historySection.appendChild(historyHeader);
-    historySection.appendChild(historyContent);
-    container.appendChild(historySection);
-  }
-
-  return container;
-}
-
-// Popup for buildings
-export async function createBuildingPopupContent(
-  address: Address & { csv_data?: { commune_nom?: string } },
-  latitude: number,
-  longitude: number,
-  onManageApartments: () => void,
-  onUpdate: () => void
-) {
-  const container = document.createElement("div");
-  container.className = "map-popup-container";
-  container.style.padding = "10px";
-  container.style.minWidth = "240px";
-  container.style.maxWidth = "260px";
-  container.style.maxHeight = "400px";
-  container.style.overflowY = "auto";
-
-  // Title
-  const title = document.createElement("strong");
-  title.style.fontSize = "13px";
-  title.style.display = "block";
-  title.style.marginBottom = "2px";
-  title.style.fontWeight = "600";
-  title.style.lineHeight = "1.3";
-  title.textContent = `${address.street_number || ""} ${address.street_name}`;
-  container.appendChild(title);
-
-  // City
-  const cityName = address.city || address.csv_data?.commune_nom;
-  if (cityName) {
-    const cityDiv = document.createElement("div");
-    cityDiv.style.fontSize = "12px";
-    cityDiv.style.color = "#6b7280";
-    cityDiv.style.marginBottom = "8px";
-    cityDiv.textContent = cityName;
-    container.appendChild(cityDiv);
-  }
-
-  // Separator
-  const separator = document.createElement("hr");
-  separator.style.border = "none";
-  separator.style.borderTop = "1px solid #e5e7eb";
-  separator.style.margin = "8px 0";
-  container.appendChild(separator);
-
-  // Building badge
-  const buildingDiv = document.createElement("div");
-  buildingDiv.style.fontSize = "11px";
-  buildingDiv.style.color = "#059669";
-  buildingDiv.style.fontWeight = "600";
-  buildingDiv.style.marginBottom = "8px";
-  buildingDiv.style.padding = "6px 8px";
-  buildingDiv.style.backgroundColor = "#f0fdf4";
-  buildingDiv.style.borderRadius = "6px";
-  buildingDiv.style.border = "1px solid #d1fae5";
-  buildingDiv.innerHTML = `🏢 Immeuble${address.building_name ? ` • ${address.building_name}` : ""}${address.apartment_count ? `<br/><span style="font-size: 11px; font-weight: 500;">${address.apartment_count} appartement${address.apartment_count > 1 ? "s" : ""}</span>` : ""}`;
-  container.appendChild(buildingDiv);
-
-  // Fetch and display apartments
-  const { data: apartments } = await supabase
-    .from("apartments")
-    .select("*")
-    .eq("address_id", address.id)
-    .order("name");
-
-  if (apartments && apartments.length > 0) {
-    // Apartments section container
-    const aptSectionDiv = document.createElement("div");
-    aptSectionDiv.style.marginBottom = "8px";
-    aptSectionDiv.style.border = "1px solid #e5e7eb";
-    aptSectionDiv.style.borderRadius = "6px";
-    aptSectionDiv.style.overflow = "hidden";
-
-    // Header (collapsible)
-    const aptHeaderDiv = document.createElement("div");
-    aptHeaderDiv.style.fontSize = "12px";
-    aptHeaderDiv.style.fontWeight = "600";
-    aptHeaderDiv.style.padding = "8px";
-    aptHeaderDiv.style.backgroundColor = "#f9fafb";
-    aptHeaderDiv.style.cursor = "pointer";
-    aptHeaderDiv.style.display = "flex";
-    aptHeaderDiv.style.justifyContent = "space-between";
-    aptHeaderDiv.style.alignItems = "center";
-    aptHeaderDiv.style.userSelect = "none";
-
-    const aptHeaderText = document.createElement("span");
-    aptHeaderText.textContent = `🏢 Appartements (${apartments.length})`;
-    aptHeaderDiv.appendChild(aptHeaderText);
-
-    const aptHeaderIcon = document.createElement("span");
-    aptHeaderIcon.textContent = "▼";
-    aptHeaderIcon.style.fontSize = "10px";
-    aptHeaderDiv.appendChild(aptHeaderIcon);
-
-    // Content (list)
-    const aptListDiv = document.createElement("div");
-    aptListDiv.style.maxHeight = "150px";
-    aptListDiv.style.overflowY = "auto";
-    aptListDiv.style.padding = "6px";
-
-    let isOpen = true;
-
-    apartments.forEach((apt) => {
-      const aptDiv = document.createElement("div");
-      aptDiv.style.padding = "6px";
-      aptDiv.style.marginBottom = "4px";
-      aptDiv.style.backgroundColor = "#f9fafb";
-      aptDiv.style.borderRadius = "4px";
-      aptDiv.style.fontSize = "11px";
-
-      const statusConfig = STATUS_CONFIG[apt.status as keyof typeof STATUS_CONFIG];
-      
-      const aptInfoDiv = document.createElement("div");
-      aptInfoDiv.style.display = "flex";
-      aptInfoDiv.style.justifyContent = "space-between";
-      aptInfoDiv.style.alignItems = "center";
-      
-      const nameSpan = document.createElement("span");
-      nameSpan.textContent = `🚪 ${apt.name}`;
-      aptInfoDiv.appendChild(nameSpan);
-      
-      const statusSpan = document.createElement("span");
-      statusSpan.style.color = statusConfig.color;
-      statusSpan.style.fontWeight = "600";
-      statusSpan.textContent = statusConfig.label;
-      aptInfoDiv.appendChild(statusSpan);
-      
-      aptDiv.appendChild(aptInfoDiv);
-
-      if (apt.observations) {
-        const obsDiv = document.createElement("div");
-        obsDiv.style.marginTop = "3px";
-        obsDiv.style.color = "#6b7280";
-        obsDiv.style.fontSize = "10px";
-        obsDiv.textContent = `"${apt.observations}"`;
-        aptDiv.appendChild(obsDiv);
-      }
-
-      aptListDiv.appendChild(aptDiv);
-    });
-
-    // Toggle collapsible
-    aptHeaderDiv.addEventListener("click", () => {
-      isOpen = !isOpen;
-      aptListDiv.style.display = isOpen ? "block" : "none";
-      aptHeaderIcon.textContent = isOpen ? "▼" : "▶";
-    });
-
-    aptSectionDiv.appendChild(aptHeaderDiv);
-    aptSectionDiv.appendChild(aptListDiv);
-    container.appendChild(aptSectionDiv);
-  }
-
-  // Fetch and display history
-  const { data: history } = await supabase
-    .from("address_status_history")
-    .select("*")
-    .eq("address_id", address.id)
-    .order("changed_at", { ascending: false })
-    .limit(10);
-
-  if (history && history.length > 0) {
-    // Separator
-    const historySeparator = document.createElement("hr");
-    historySeparator.style.border = "none";
-    historySeparator.style.borderTop = "1px solid #e5e7eb";
-    historySeparator.style.margin = "8px 0";
-    container.appendChild(historySeparator);
-
-    // History section (collapsible)
-    const historySection = document.createElement("div");
-    historySection.style.marginBottom = "8px";
-    historySection.style.border = "1px solid #e5e7eb";
-    historySection.style.borderRadius = "6px";
-    historySection.style.overflow = "hidden";
-
-    // Header (clickable)
-    const historyHeader = document.createElement("div");
-    historyHeader.style.padding = "8px";
-    historyHeader.style.backgroundColor = "#f9fafb";
-    historyHeader.style.cursor = "pointer";
-    historyHeader.style.fontWeight = "600";
-    historyHeader.style.fontSize = "12px";
-    historyHeader.style.display = "flex";
-    historyHeader.style.justifyContent = "space-between";
-    historyHeader.style.alignItems = "center";
-    historyHeader.style.userSelect = "none";
-
-    const historyTitle = document.createElement("span");
-    historyTitle.textContent = `📜 Historique (${history.length})`;
-    historyHeader.appendChild(historyTitle);
-
-    const historyIcon = document.createElement("span");
-    historyIcon.textContent = "▶";
-    historyIcon.style.fontSize = "10px";
-    historyHeader.appendChild(historyIcon);
-
-    // Content (list)
-    const historyContent = document.createElement("div");
-    historyContent.style.maxHeight = "200px";
-    historyContent.style.overflowY = "auto";
-    historyContent.style.padding = "6px";
-    let isHistoryOpen = false;
-    historyContent.style.display = "none";
-
-    // Populate history entries
-    history.forEach((entry, index) => {
-      const entryDiv = document.createElement("div");
-      entryDiv.style.padding = "6px";
-      entryDiv.style.marginBottom = "4px";
-      entryDiv.style.backgroundColor = "#f9fafb";
-      entryDiv.style.borderRadius = "4px";
-      entryDiv.style.fontSize = "11px";
-
-      const oldConfig = entry.old_status ? STATUS_CONFIG[entry.old_status as keyof typeof STATUS_CONFIG] : null;
-      const newConfig = STATUS_CONFIG[entry.new_status as keyof typeof STATUS_CONFIG];
-
-      // Status change line
-      const statusLine = document.createElement("div");
-      statusLine.style.display = "flex";
-      statusLine.style.justifyContent = "space-between";
-      statusLine.style.alignItems = "center";
-      statusLine.style.marginBottom = "2px";
-
-      const statusChange = document.createElement("span");
-      if (oldConfig) {
-        statusChange.innerHTML = `<span style="color: ${oldConfig.color}">${oldConfig.label}</span> → <span style="color: ${newConfig.color}; font-weight: 600;">${newConfig.label}</span>`;
-      } else {
-        statusChange.innerHTML = `<span style="color: ${newConfig.color}; font-weight: 600;">${newConfig.label}</span>`;
-      }
-      statusLine.appendChild(statusChange);
-
-      // Date
-      const date = new Date(entry.changed_at);
-      const dateSpan = document.createElement("span");
-      dateSpan.style.color = "#6b7280";
-      dateSpan.style.fontSize = "10px";
-      dateSpan.textContent = date.toLocaleString("fr-FR", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-      statusLine.appendChild(dateSpan);
-
-      entryDiv.appendChild(statusLine);
-
-      // Observations (if changed)
-      if (entry.new_observations && entry.new_observations !== entry.old_observations) {
-        const obsDiv = document.createElement("div");
-        obsDiv.style.marginTop = "3px";
-        obsDiv.style.color = "#6b7280";
-        obsDiv.style.fontSize = "10px";
-        obsDiv.style.fontStyle = "italic";
-        obsDiv.textContent = `"${entry.new_observations}"`;
-        entryDiv.appendChild(obsDiv);
-      }
-
-      historyContent.appendChild(entryDiv);
-
-      // Separator between entries (except last)
-      if (index < history.length - 1) {
-        const sep = document.createElement("hr");
-        sep.style.border = "none";
-        sep.style.borderTop = "1px solid #e5e7eb";
-        sep.style.margin = "4px 0";
-        historyContent.appendChild(sep);
-      }
-    });
-
-    // Toggle collapsible
-    historyHeader.addEventListener("click", () => {
-      isHistoryOpen = !isHistoryOpen;
-      historyContent.style.display = isHistoryOpen ? "block" : "none";
-      historyIcon.textContent = isHistoryOpen ? "▼" : "▶";
-    });
-
-    historySection.appendChild(historyHeader);
-    historySection.appendChild(historyContent);
-    container.appendChild(historySection);
-  }
-
-  // Separator
-  const separator3 = document.createElement("hr");
-  separator3.style.border = "none";
-  separator3.style.borderTop = "1px solid #e5e7eb";
-  separator3.style.margin = "8px 0";
-  container.appendChild(separator3);
-
-  // Manage apartments button
-  const manageBtn = document.createElement("button");
-  manageBtn.textContent = "🏢 Gérer les appartements";
-  manageBtn.style.width = "100%";
-  manageBtn.style.padding = "8px";
-  manageBtn.style.marginBottom = "8px";
-  manageBtn.style.backgroundColor = "#059669";
-  manageBtn.style.color = "white";
-  manageBtn.style.border = "none";
-  manageBtn.style.borderRadius = "6px";
-  manageBtn.style.cursor = "pointer";
-  manageBtn.style.fontWeight = "600";
-  manageBtn.style.fontSize = "11px";
-  
-  manageBtn.addEventListener("click", () => {
-    onManageApartments();
-  });
-  
-  container.appendChild(manageBtn);
-
-  // Convert back to normal address button (always visible)
-  const hasApartments = apartments && apartments.length > 0;
-  const removeBtn = document.createElement("button");
-  removeBtn.textContent = hasApartments 
-    ? `⚠️ Convertir en maison (${apartments.length} apt)` 
-    : "❌ Retirer le statut immeuble";
-  removeBtn.style.width = "100%";
-  removeBtn.style.padding = "8px";
-  removeBtn.style.marginBottom = "8px";
-  removeBtn.style.backgroundColor = hasApartments ? "#F59E0B" : "#EF4444";
-  removeBtn.style.color = "white";
-  removeBtn.style.border = "none";
-  removeBtn.style.borderRadius = "6px";
-  removeBtn.style.cursor = "pointer";
-  removeBtn.style.fontWeight = "600";
-  removeBtn.style.fontSize = "11px";
-  
-  removeBtn.addEventListener("click", async () => {
-    const confirmMessage = hasApartments
-      ? `⚠️ ATTENTION !\n\nCette action va supprimer définitivement les ${apartments.length} appartement(s) de cet immeuble et le reconvertir en maison normale.\n\nÊtes-vous sûr de vouloir continuer ?`
-      : "Retirer le statut immeuble ?";
-    
-    if (!confirm(confirmMessage)) return;
-    
-    try {
-      // Step 1: Delete all apartments if any exist
-      if (hasApartments) {
-        const { error: deleteError } = await supabase
-          .from("apartments")
-          .delete()
-          .eq("address_id", address.id);
-        
-        if (deleteError) throw deleteError;
-      }
-      
-      // Step 2: Remove building status
-      const { error: updateError } = await supabase
-        .from("addresses")
-        .update({ 
-          is_building: false,
-          building_name: null,
-          apartment_count: null 
-        })
-        .eq("id", address.id);
-
-      if (updateError) throw updateError;
-      
-      const message = hasApartments 
-        ? `Immeuble reconverti en maison (${apartments.length} appartement(s) supprimé(s))` 
-        : "Statut immeuble retiré !";
-      
-      toast.success(message);
-      onUpdate();
-      
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Erreur lors de la conversion");
-    }
-  });
-  
-  container.appendChild(removeBtn);
-
-  // Navigate button
-  const navBtn = document.createElement("a");
-  navBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-  navBtn.target = "_blank";
-  navBtn.style.display = "block";
-  navBtn.style.textAlign = "center";
-  navBtn.style.padding = "8px";
-  navBtn.style.backgroundColor = "#10b981";
-  navBtn.style.color = "white";
-  navBtn.style.textDecoration = "none";
-  navBtn.style.borderRadius = "6px";
-  navBtn.style.fontWeight = "600";
-  navBtn.style.fontSize = "11px";
-  navBtn.textContent = "📍 Naviguer";
-  container.appendChild(navBtn);
+  historyContainer.appendChild(historyContent);
+  container.appendChild(historyContainer);
 
   return container;
 }

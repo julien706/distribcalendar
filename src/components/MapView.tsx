@@ -8,7 +8,7 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import "leaflet.markercluster";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { createAddressPopupContent, createBuildingPopupContent } from "./MapPopup";
+import { createPopupContent } from "./MapPopup";
 import { Button } from "./ui/button";
 import { Navigation, Lasso, X, Trash2, MapPin, Layers, Route, Hexagon, Maximize, Target } from "lucide-react";
 import { STATUS_CONFIG, StatusType } from "@/lib/statusConfig";
@@ -19,8 +19,6 @@ import StatusFilter from "./StatusFilter";
 import RouteOptimizer from "./RouteOptimizer";
 import CreateZoneDialog from "./CreateZoneDialog";
 import EditZoneDialog from "./EditZoneDialog";
-import ApartmentManager from "./ApartmentManager";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,9 +41,6 @@ type Address = {
   csv_data?: any | null;
   zone_id?: string | null;
   city?: string | null;
-  is_building?: boolean;
-  building_name?: string | null;
-  apartment_count?: number | null;
 };
 
 type Zone = {
@@ -58,7 +53,6 @@ type Zone = {
 
 export default function MapView() {
   const { isAdmin } = useAuth();
-  const queryClient = useQueryClient();
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.Marker[]>([]);
@@ -97,10 +91,6 @@ export default function MapView() {
   const [optimizedRoute, setOptimizedRoute] = useState<Address[]>([]);
   const routeLineRef = useRef<L.Polyline | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-  
-  // Apartment manager state
-  const [showApartmentManager, setShowApartmentManager] = useState(false);
-  const [selectedBuildingAddress, setSelectedBuildingAddress] = useState<Address | null>(null);
   
   // Zone management state
   const [zones, setZones] = useState<Zone[]>([]);
@@ -861,11 +851,6 @@ export default function MapView() {
     });
   }, [zones, showZones]);
 
-  // Callback for invalidating React Query
-  const handleDataUpdate = () => {
-    queryClient.invalidateQueries({ queryKey: ['addresses'] });
-  };
-
   // Memoize filtered addresses to avoid recalculation
   const filteredAddresses = useMemo(() => {
     return addresses.filter((addr) => statusFilter.includes(addr.status as StatusType));
@@ -927,52 +912,30 @@ export default function MapView() {
       const isManuallyAdded = !hasImportedData;
       const textColor = getContrastingTextColor(color);
       
-      // Create custom icon with selection ring and building indicator
-      const isBuilding = address.is_building || false;
+      // Create custom icon with selection ring
       const streetNumber = showNumbers ? (address.street_number || '') : '';
-      
-      // Building marker: larger with building icon
-      const buildingHtml = isBuilding 
-        ? `<div style="
-            width: 44px;
-            height: 44px;
-            background-color: ${color};
-            border: 3px solid white;
-            border-radius: 8px;
-            ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 6px rgba(0,0,0,0.4); transform: scale(1.08);' : 'box-shadow: 0 2px 6px rgba(0,0,0,0.4);'}
-            cursor: pointer;
-            transition: transform 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            color: ${textColor};
-            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
-          ">🏢</div>`
-        : `<div style="
-            width: 36px;
-            height: 36px;
-            background-color: ${color};
-            border: 3px solid white;
-            border-radius: ${isManuallyAdded ? '50%' : '4px'};
-            ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
-            cursor: pointer;
-            transition: transform 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 13px;
-            font-weight: 700;
-            color: ${textColor};
-            text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3);
-            line-height: 1;
-          ">${streetNumber}</div>`;
-      
       const icon = L.divIcon({
         className: "custom-marker",
-        html: buildingHtml,
-        iconSize: isBuilding ? [44, 44] : [36, 36],
-        iconAnchor: isBuilding ? [22, 22] : [18, 18],
+        html: `<div style="
+          width: 36px;
+          height: 36px;
+          background-color: ${color};
+          border: 3px solid white;
+          border-radius: ${isManuallyAdded ? '50%' : '4px'};
+          ${isSelected ? 'box-shadow: 0 0 0 4px hsl(var(--primary) / 0.5), 0 2px 4px rgba(0,0,0,0.3); transform: scale(1.08);' : 'box-shadow: 0 2px 4px rgba(0,0,0,0.3);'}
+          cursor: pointer;
+          transition: transform 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 13px;
+          font-weight: 700;
+          color: ${textColor};
+          text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3);
+          line-height: 1;
+        ">${streetNumber}</div>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
       });
 
       // Handle status change callback
@@ -1051,34 +1014,8 @@ export default function MapView() {
 
       // Lazy load popup with interactive content only when clicked (not in lasso/add mode)
       if (!lassoMode && !addMode) {
-        marker.on('popupopen', async () => {
-          let popupContent: HTMLElement;
-          
-          // Check if it's a building
-          if (address.is_building) {
-            // Popup for building
-            popupContent = await createBuildingPopupContent(
-              address,
-              address.latitude,
-              address.longitude,
-              () => {
-                // Open apartment manager
-                setSelectedBuildingAddress(address);
-                setShowApartmentManager(true);
-              },
-              handleDataUpdate
-            );
-          } else {
-            // Popup for normal address
-            popupContent = await createAddressPopupContent(
-              address,
-              handleStatusChange,
-              address.latitude,
-              address.longitude,
-              handleDataUpdate
-            );
-          }
-          
+        marker.on('popupopen', () => {
+          const popupContent = createPopupContent(address, handleStatusChange, address.latitude, address.longitude);
           marker.setPopupContent(popupContent);
         });
         marker.bindPopup('', {
@@ -1406,29 +1343,6 @@ export default function MapView() {
           }
         }}
       />
-
-      {/* Apartment Manager Dialog */}
-      {showApartmentManager && selectedBuildingAddress && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50">
-          <div className="relative bg-background rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
-            <ApartmentManager
-              address={{
-                id: selectedBuildingAddress.id,
-                street_name: selectedBuildingAddress.street_name,
-                street_number: selectedBuildingAddress.street_number,
-                city: selectedBuildingAddress.city || null,
-                building_name: selectedBuildingAddress.building_name || null,
-              }}
-              onClose={() => {
-                setShowApartmentManager(false);
-                setSelectedBuildingAddress(null);
-                // Invalidate address queries to refresh the data
-                queryClient.invalidateQueries({ queryKey: ['addresses'] });
-              }}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Zone Shape Editing Overlay */}
       {editingZoneShape && (

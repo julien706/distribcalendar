@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { MapPin, RefreshCw, Search, Building2 } from "lucide-react";
+import { MapPin, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { STATUS_CONFIG } from "@/lib/statusConfig";
 import StatisticsCard from "./StatisticsCard";
@@ -32,9 +32,6 @@ type Address = {
   status: string;
   observations: string | null;
   csv_data: any;
-  is_building?: boolean;
-  building_name?: string | null;
-  apartment_count?: number | null;
 };
 
 const STATUS_VARIANTS = {
@@ -383,22 +380,9 @@ export default function AddressList({ onSelectAddress }: { onSelectAddress: (add
               <CardHeader className="pb-3 px-3 py-3 sm:px-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <CardTitle className="text-sm sm:text-base truncate">
-                        {address.street_number || ""} {address.street_name}
-                      </CardTitle>
-                      {address.is_building && (
-                        <Badge variant="outline" className="shrink-0 text-xs flex items-center gap-1">
-                          <Building2 className="h-3 w-3" />
-                          <span className="hidden sm:inline">
-                            {address.apartment_count || 0} appt{(address.apartment_count || 0) > 1 ? "s" : ""}
-                          </span>
-                          <span className="sm:hidden">
-                            {address.apartment_count || 0}
-                          </span>
-                        </Badge>
-                      )}
-                    </div>
+                    <CardTitle className="text-sm sm:text-base truncate">
+                      {address.street_number || ""} {address.street_name}
+                    </CardTitle>
                     <div className="text-xs mt-1 space-y-0.5 text-muted-foreground">
                       {address.city && (
                         <div className="truncate font-medium text-foreground/70">

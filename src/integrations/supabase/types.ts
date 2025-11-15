@@ -54,13 +54,10 @@ export type Database = {
       }
       addresses: {
         Row: {
-          apartment_count: number | null
-          building_name: string | null
           city: string | null
           created_at: string
           csv_data: Json | null
           id: string
-          is_building: boolean | null
           is_even: boolean | null
           last_visit_date: string | null
           latitude: number
@@ -73,13 +70,10 @@ export type Database = {
           zone_id: string | null
         }
         Insert: {
-          apartment_count?: number | null
-          building_name?: string | null
           city?: string | null
           created_at?: string
           csv_data?: Json | null
           id?: string
-          is_building?: boolean | null
           is_even?: boolean | null
           last_visit_date?: string | null
           latitude: number
@@ -92,13 +86,10 @@ export type Database = {
           zone_id?: string | null
         }
         Update: {
-          apartment_count?: number | null
-          building_name?: string | null
           city?: string | null
           created_at?: string
           csv_data?: Json | null
           id?: string
-          is_building?: boolean | null
           is_even?: boolean | null
           last_visit_date?: string | null
           latitude?: number
@@ -116,44 +107,6 @@ export type Database = {
             columns: ["zone_id"]
             isOneToOne: false
             referencedRelation: "zones"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      apartments: {
-        Row: {
-          address_id: string
-          created_at: string
-          id: string
-          name: string
-          observations: string | null
-          status: Database["public"]["Enums"]["distribution_status"]
-          updated_at: string
-        }
-        Insert: {
-          address_id: string
-          created_at?: string
-          id?: string
-          name: string
-          observations?: string | null
-          status?: Database["public"]["Enums"]["distribution_status"]
-          updated_at?: string
-        }
-        Update: {
-          address_id?: string
-          created_at?: string
-          id?: string
-          name?: string
-          observations?: string | null
-          status?: Database["public"]["Enums"]["distribution_status"]
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "apartments_address_id_fkey"
-            columns: ["address_id"]
-            isOneToOne: false
-            referencedRelation: "addresses"
             referencedColumns: ["id"]
           },
         ]
@@ -341,10 +294,6 @@ export type Database = {
         Returns: undefined
       }
       backfill_zone_assignments: { Args: never; Returns: number }
-      calculate_building_status: {
-        Args: { _address_id: string }
-        Returns: Database["public"]["Enums"]["distribution_status"]
-      }
       get_user_team_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_zone_ids: { Args: { _user_id: string }; Returns: string[] }
       get_zone_stats: {
