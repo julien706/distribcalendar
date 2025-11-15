@@ -64,37 +64,6 @@ export async function createAddressPopupContent(
   separator.style.margin = "8px 0";
   container.appendChild(separator);
 
-  // Status section
-  const statusLabel = document.createElement("label");
-  statusLabel.style.fontSize = "12px";
-  statusLabel.style.fontWeight = "600";
-  statusLabel.style.display = "block";
-  statusLabel.style.marginBottom = "4px";
-  statusLabel.textContent = "Statut";
-  container.appendChild(statusLabel);
-
-  const statusSelect = document.createElement("select");
-  statusSelect.style.width = "100%";
-  statusSelect.style.padding = "6px";
-  statusSelect.style.fontSize = "12px";
-  statusSelect.style.border = "1px solid #d1d5db";
-  statusSelect.style.borderRadius = "6px";
-  statusSelect.style.marginBottom = "8px";
-  statusSelect.value = address.status;
-
-  STATUS_OPTIONS.forEach((option) => {
-    const optionElement = document.createElement("option");
-    optionElement.value = option.value;
-    optionElement.textContent = option.label;
-    statusSelect.appendChild(optionElement);
-  });
-
-  statusSelect.addEventListener("change", (e) => {
-    onStatusChange(address.id, (e.target as HTMLSelectElement).value);
-  });
-
-  container.appendChild(statusSelect);
-
   // Observations section
   const obsLabel = document.createElement("label");
   obsLabel.style.fontSize = "12px";
@@ -137,6 +106,136 @@ export async function createAddressPopupContent(
   });
 
   container.appendChild(obsTextarea);
+
+  // Fetch and display history
+  const { data: history } = await supabase
+    .from("address_status_history")
+    .select("*")
+    .eq("address_id", address.id)
+    .order("changed_at", { ascending: false })
+    .limit(10);
+
+  if (history && history.length > 0) {
+    // Separator
+    const historySeparator = document.createElement("hr");
+    historySeparator.style.border = "none";
+    historySeparator.style.borderTop = "1px solid #e5e7eb";
+    historySeparator.style.margin = "8px 0";
+    container.appendChild(historySeparator);
+
+    // History section (collapsible)
+    const historySection = document.createElement("div");
+    historySection.style.marginBottom = "8px";
+    historySection.style.border = "1px solid #e5e7eb";
+    historySection.style.borderRadius = "6px";
+    historySection.style.overflow = "hidden";
+
+    // Header (clickable)
+    const historyHeader = document.createElement("div");
+    historyHeader.style.padding = "8px";
+    historyHeader.style.backgroundColor = "#f9fafb";
+    historyHeader.style.cursor = "pointer";
+    historyHeader.style.fontWeight = "600";
+    historyHeader.style.fontSize = "12px";
+    historyHeader.style.display = "flex";
+    historyHeader.style.justifyContent = "space-between";
+    historyHeader.style.alignItems = "center";
+    historyHeader.style.userSelect = "none";
+
+    const historyTitle = document.createElement("span");
+    historyTitle.textContent = `📜 Historique (${history.length})`;
+    historyHeader.appendChild(historyTitle);
+
+    const historyIcon = document.createElement("span");
+    historyIcon.textContent = "▶";
+    historyIcon.style.fontSize = "10px";
+    historyHeader.appendChild(historyIcon);
+
+    // Content (list)
+    const historyContent = document.createElement("div");
+    historyContent.style.maxHeight = "200px";
+    historyContent.style.overflowY = "auto";
+    historyContent.style.padding = "6px";
+    let isHistoryOpen = false;
+    historyContent.style.display = "none";
+
+    // Populate history entries
+    history.forEach((entry, index) => {
+      const entryDiv = document.createElement("div");
+      entryDiv.style.padding = "6px";
+      entryDiv.style.marginBottom = "4px";
+      entryDiv.style.backgroundColor = "#f9fafb";
+      entryDiv.style.borderRadius = "4px";
+      entryDiv.style.fontSize = "11px";
+
+      const oldConfig = entry.old_status ? STATUS_CONFIG[entry.old_status as keyof typeof STATUS_CONFIG] : null;
+      const newConfig = STATUS_CONFIG[entry.new_status as keyof typeof STATUS_CONFIG];
+
+      // Status change line
+      const statusLine = document.createElement("div");
+      statusLine.style.display = "flex";
+      statusLine.style.justifyContent = "space-between";
+      statusLine.style.alignItems = "center";
+      statusLine.style.marginBottom = "2px";
+
+      const statusChange = document.createElement("span");
+      if (oldConfig) {
+        statusChange.innerHTML = `<span style="color: ${oldConfig.color}">${oldConfig.label}</span> → <span style="color: ${newConfig.color}; font-weight: 600;">${newConfig.label}</span>`;
+      } else {
+        statusChange.innerHTML = `<span style="color: ${newConfig.color}; font-weight: 600;">${newConfig.label}</span>`;
+      }
+      statusLine.appendChild(statusChange);
+
+      // Date
+      const date = new Date(entry.changed_at);
+      const dateSpan = document.createElement("span");
+      dateSpan.style.color = "#6b7280";
+      dateSpan.style.fontSize = "10px";
+      dateSpan.textContent = date.toLocaleString("fr-FR", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      statusLine.appendChild(dateSpan);
+
+      entryDiv.appendChild(statusLine);
+
+      // Observations (if changed)
+      if (entry.new_observations && entry.new_observations !== entry.old_observations) {
+        const obsDiv = document.createElement("div");
+        obsDiv.style.marginTop = "3px";
+        obsDiv.style.color = "#6b7280";
+        obsDiv.style.fontSize = "10px";
+        obsDiv.style.fontStyle = "italic";
+        obsDiv.textContent = `"${entry.new_observations}"`;
+        entryDiv.appendChild(obsDiv);
+      }
+
+      historyContent.appendChild(entryDiv);
+
+      // Separator between entries (except last)
+      if (index < history.length - 1) {
+        const sep = document.createElement("hr");
+        sep.style.border = "none";
+        sep.style.borderTop = "1px solid #e5e7eb";
+        sep.style.margin = "4px 0";
+        historyContent.appendChild(sep);
+      }
+    });
+
+    // Toggle collapsible
+    historyHeader.addEventListener("click", () => {
+      isHistoryOpen = !isHistoryOpen;
+      historyContent.style.display = isHistoryOpen ? "block" : "none";
+      historyIcon.textContent = isHistoryOpen ? "▼" : "▶";
+    });
+
+    historySection.appendChild(historyHeader);
+    historySection.appendChild(historyContent);
+    container.appendChild(historySection);
+  }
 
   // Separator
   const separator2 = document.createElement("hr");
@@ -390,6 +489,143 @@ export async function createBuildingPopupContent(
     aptSectionDiv.appendChild(aptListDiv);
     container.appendChild(aptSectionDiv);
   }
+
+  // Fetch and display history
+  const { data: history } = await supabase
+    .from("address_status_history")
+    .select("*")
+    .eq("address_id", address.id)
+    .order("changed_at", { ascending: false })
+    .limit(10);
+
+  if (history && history.length > 0) {
+    // Separator
+    const historySeparator = document.createElement("hr");
+    historySeparator.style.border = "none";
+    historySeparator.style.borderTop = "1px solid #e5e7eb";
+    historySeparator.style.margin = "8px 0";
+    container.appendChild(historySeparator);
+
+    // History section (collapsible)
+    const historySection = document.createElement("div");
+    historySection.style.marginBottom = "8px";
+    historySection.style.border = "1px solid #e5e7eb";
+    historySection.style.borderRadius = "6px";
+    historySection.style.overflow = "hidden";
+
+    // Header (clickable)
+    const historyHeader = document.createElement("div");
+    historyHeader.style.padding = "8px";
+    historyHeader.style.backgroundColor = "#f9fafb";
+    historyHeader.style.cursor = "pointer";
+    historyHeader.style.fontWeight = "600";
+    historyHeader.style.fontSize = "12px";
+    historyHeader.style.display = "flex";
+    historyHeader.style.justifyContent = "space-between";
+    historyHeader.style.alignItems = "center";
+    historyHeader.style.userSelect = "none";
+
+    const historyTitle = document.createElement("span");
+    historyTitle.textContent = `📜 Historique (${history.length})`;
+    historyHeader.appendChild(historyTitle);
+
+    const historyIcon = document.createElement("span");
+    historyIcon.textContent = "▶";
+    historyIcon.style.fontSize = "10px";
+    historyHeader.appendChild(historyIcon);
+
+    // Content (list)
+    const historyContent = document.createElement("div");
+    historyContent.style.maxHeight = "200px";
+    historyContent.style.overflowY = "auto";
+    historyContent.style.padding = "6px";
+    let isHistoryOpen = false;
+    historyContent.style.display = "none";
+
+    // Populate history entries
+    history.forEach((entry, index) => {
+      const entryDiv = document.createElement("div");
+      entryDiv.style.padding = "6px";
+      entryDiv.style.marginBottom = "4px";
+      entryDiv.style.backgroundColor = "#f9fafb";
+      entryDiv.style.borderRadius = "4px";
+      entryDiv.style.fontSize = "11px";
+
+      const oldConfig = entry.old_status ? STATUS_CONFIG[entry.old_status as keyof typeof STATUS_CONFIG] : null;
+      const newConfig = STATUS_CONFIG[entry.new_status as keyof typeof STATUS_CONFIG];
+
+      // Status change line
+      const statusLine = document.createElement("div");
+      statusLine.style.display = "flex";
+      statusLine.style.justifyContent = "space-between";
+      statusLine.style.alignItems = "center";
+      statusLine.style.marginBottom = "2px";
+
+      const statusChange = document.createElement("span");
+      if (oldConfig) {
+        statusChange.innerHTML = `<span style="color: ${oldConfig.color}">${oldConfig.label}</span> → <span style="color: ${newConfig.color}; font-weight: 600;">${newConfig.label}</span>`;
+      } else {
+        statusChange.innerHTML = `<span style="color: ${newConfig.color}; font-weight: 600;">${newConfig.label}</span>`;
+      }
+      statusLine.appendChild(statusChange);
+
+      // Date
+      const date = new Date(entry.changed_at);
+      const dateSpan = document.createElement("span");
+      dateSpan.style.color = "#6b7280";
+      dateSpan.style.fontSize = "10px";
+      dateSpan.textContent = date.toLocaleString("fr-FR", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      statusLine.appendChild(dateSpan);
+
+      entryDiv.appendChild(statusLine);
+
+      // Observations (if changed)
+      if (entry.new_observations && entry.new_observations !== entry.old_observations) {
+        const obsDiv = document.createElement("div");
+        obsDiv.style.marginTop = "3px";
+        obsDiv.style.color = "#6b7280";
+        obsDiv.style.fontSize = "10px";
+        obsDiv.style.fontStyle = "italic";
+        obsDiv.textContent = `"${entry.new_observations}"`;
+        entryDiv.appendChild(obsDiv);
+      }
+
+      historyContent.appendChild(entryDiv);
+
+      // Separator between entries (except last)
+      if (index < history.length - 1) {
+        const sep = document.createElement("hr");
+        sep.style.border = "none";
+        sep.style.borderTop = "1px solid #e5e7eb";
+        sep.style.margin = "4px 0";
+        historyContent.appendChild(sep);
+      }
+    });
+
+    // Toggle collapsible
+    historyHeader.addEventListener("click", () => {
+      isHistoryOpen = !isHistoryOpen;
+      historyContent.style.display = isHistoryOpen ? "block" : "none";
+      historyIcon.textContent = isHistoryOpen ? "▼" : "▶";
+    });
+
+    historySection.appendChild(historyHeader);
+    historySection.appendChild(historyContent);
+    container.appendChild(historySection);
+  }
+
+  // Separator
+  const separator3 = document.createElement("hr");
+  separator3.style.border = "none";
+  separator3.style.borderTop = "1px solid #e5e7eb";
+  separator3.style.margin = "8px 0";
+  container.appendChild(separator3);
 
   // Manage apartments button
   const manageBtn = document.createElement("button");
