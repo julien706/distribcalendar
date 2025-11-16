@@ -30,6 +30,8 @@ export function BuildingApartmentsDialog({
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [loading, setLoading] = useState(false);
   const [newApartmentName, setNewApartmentName] = useState("");
+  const [editingNameId, setEditingNameId] = useState<string | null>(null);
+  const [editingNameValue, setEditingNameValue] = useState("");
 
   useEffect(() => {
     if (open && addressId) {
@@ -99,6 +101,30 @@ export function BuildingApartmentsDialog({
     }
   };
 
+  const handleUpdateName = async (aptId: string, newName: string) => {
+    if (!newName.trim()) {
+      toast.error("Le nom ne peut pas être vide");
+      return;
+    }
+
+    const { error } = await supabase
+      .from('apartments')
+      .update({ name: newName.trim() })
+      .eq('id', aptId);
+
+    if (error) {
+      toast.error("Erreur lors de la mise à jour du nom");
+    } else {
+      setApartments(prev => prev.map(apt => 
+        apt.id === aptId ? { ...apt, name: newName.trim() } : apt
+      ));
+      setEditingNameId(null);
+      setEditingNameValue("");
+      onUpdate();
+      toast.success("Nom modifié");
+    }
+  };
+
   const handleDeleteApartment = async (aptId: string) => {
     if (!confirm("Supprimer cet appartement ?")) return;
 
@@ -145,15 +171,58 @@ export function BuildingApartmentsDialog({
             <p className="text-center text-muted-foreground">Aucun appartement</p>
           ) : (
             apartments.map((apt) => (
-              <div key={apt.id} className="border rounded-lg p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <strong className="text-sm">{apt.name}</strong>
+              <div key={apt.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  {editingNameId === apt.id ? (
+                    <div className="flex gap-2 items-center flex-1">
+                      <Input
+                        value={editingNameValue}
+                        onChange={(e) => setEditingNameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleUpdateName(apt.id, editingNameValue);
+                          if (e.key === 'Escape') setEditingNameId(null);
+                        }}
+                        autoFocus
+                        className="text-sm"
+                      />
+                      <Button 
+                        size="sm" 
+                        onClick={() => handleUpdateName(apt.id, editingNameValue)}
+                        className="h-8 w-8 p-0"
+                      >
+                        ✓
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="ghost"
+                        onClick={() => setEditingNameId(null)}
+                        className="h-8 w-8 p-0"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-1">
+                      <strong className="text-sm">{apt.name}</strong>
+                      <button 
+                        onClick={() => {
+                          setEditingNameId(apt.id);
+                          setEditingNameValue(apt.name);
+                        }}
+                        className="text-muted-foreground hover:text-foreground text-xs"
+                        title="Modifier le nom"
+                      >
+                        ✏️
+                      </button>
+                    </div>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDeleteApartment(apt.id)}
+                    className="h-8 w-8 p-0"
                   >
-                    <Trash2 className="w-4 h-4 text-destructive" />
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
                 

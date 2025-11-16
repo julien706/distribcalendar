@@ -127,15 +127,21 @@ async function fetchAndDisplayApartments(
   listContainer.innerHTML = '';
   apartments.forEach((apt: Apartment) => {
     const aptDiv = document.createElement("div");
-    aptDiv.style.padding = "8px";
-    aptDiv.style.marginBottom = "6px";
+    aptDiv.style.padding = "10px";
+    aptDiv.style.marginBottom = "8px";
     aptDiv.style.backgroundColor = "#f9fafb";
     aptDiv.style.borderRadius = "6px";
     aptDiv.style.fontSize = "12px";
+    aptDiv.style.display = "flex";
+    aptDiv.style.flexDirection = "column";
+    aptDiv.style.gap = "8px";
 
     const statusConfig = STATUS_CONFIG[apt.status as keyof typeof STATUS_CONFIG];
-    aptDiv.innerHTML = `
-      <div style="display: flex; align-items: center; justify-content: space-between;">
+    
+    // Info section (name + current status)
+    const infoDiv = document.createElement("div");
+    infoDiv.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
         <strong>${apt.name}</strong>
         <span style="
           padding: 2px 6px; 
@@ -146,8 +152,63 @@ async function fetchAndDisplayApartments(
           font-weight: 600;
         ">${statusConfig?.label || apt.status}</span>
       </div>
-      ${apt.observations ? `<div style="color: #6b7280; font-size: 11px; margin-top: 4px;">${apt.observations}</div>` : ''}
+      ${apt.observations ? `<div style="color: #6b7280; font-size: 11px;">${apt.observations}</div>` : ''}
     `;
+    aptDiv.appendChild(infoDiv);
+
+    // Quick action buttons
+    const quickActionsDiv = document.createElement("div");
+    quickActionsDiv.style.display = "flex";
+    quickActionsDiv.style.gap = "4px";
+    quickActionsDiv.style.flexWrap = "wrap";
+
+    const statusOptions = [
+      { status: 'done', icon: '✓', label: 'Fait', color: '#22c55e' },
+      { status: 'pending', icon: '⏳', label: 'En attente', color: '#94a3b8' },
+      { status: 'refused', icon: '✕', label: 'Refusé', color: '#ef4444' },
+      { status: 'retry_first', icon: '🔄', label: 'Repasse 1', color: '#f59e0b' },
+    ];
+
+    statusOptions.forEach(({ status, icon, label, color }) => {
+      const btn = document.createElement("button");
+      btn.innerHTML = `${icon}`;
+      btn.title = label;
+      btn.style.padding = "4px 10px";
+      btn.style.borderRadius = "4px";
+      btn.style.border = apt.status === status ? `2px solid ${color}` : "1px solid #d1d5db";
+      btn.style.backgroundColor = apt.status === status ? `${color}20` : "#ffffff";
+      btn.style.cursor = "pointer";
+      btn.style.fontSize = "14px";
+      btn.style.fontWeight = "500";
+      btn.style.transition = "all 0.2s";
+      
+      btn.onmouseover = () => {
+        if (apt.status !== status) {
+          btn.style.backgroundColor = "#f3f4f6";
+        }
+      };
+      btn.onmouseout = () => {
+        if (apt.status !== status) {
+          btn.style.backgroundColor = "#ffffff";
+        }
+      };
+      
+      btn.onclick = async () => {
+        const { error } = await supabase
+          .from('apartments')
+          .update({ status: status as any })
+          .eq('id', apt.id);
+        
+        if (!error) {
+          onUpdate();
+          fetchAndDisplayApartments(addressId, listContainer, onUpdate);
+        }
+      };
+      
+      quickActionsDiv.appendChild(btn);
+    });
+
+    aptDiv.appendChild(quickActionsDiv);
     listContainer.appendChild(aptDiv);
   });
 }
