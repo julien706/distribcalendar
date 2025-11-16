@@ -357,7 +357,6 @@ export default function StatisticsView() {
                             />
                             <YAxis tick={{ fill: 'hsl(var(--foreground))' }} />
                             <ChartTooltip content={<ChartTooltipContent />} />
-                            <Legend wrapperStyle={{ paddingTop: '20px' }} />
                             {selectedStatuses.includes('done') && (
                               <Bar dataKey="done" fill="#22c55e" name="Faites" radius={[8, 8, 0, 0]} />
                             )}
@@ -569,7 +568,6 @@ export default function StatisticsView() {
                           />
                           <YAxis tick={{ fill: 'hsl(var(--foreground))' }} />
                           <ChartTooltip content={<ChartTooltipContent />} />
-                          <Legend wrapperStyle={{ paddingTop: '10px' }} />
                           <Bar dataKey="total_zones" fill="hsl(262, 83%, 58%)" name="Zones" radius={[8, 8, 0, 0]} />
                           <Bar dataKey="total_addresses" fill="hsl(217, 91%, 60%)" name="Adresses" radius={[8, 8, 0, 0]} />
                         </BarChart>
@@ -626,7 +624,6 @@ export default function StatisticsView() {
                             />
                             <YAxis tick={{ fill: 'hsl(var(--foreground))' }} />
                             <ChartTooltip content={<ChartTooltipContent />} />
-                            <Legend wrapperStyle={{ paddingTop: '10px' }} />
                             {selectedStatuses.includes('done') && (
                               <Bar dataKey="done" fill="#22c55e" name="Faites" radius={[8, 8, 0, 0]} />
                             )}
