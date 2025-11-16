@@ -30,6 +30,10 @@ interface ZoneStats {
   done: number;
   pending: number;
   refused: number;
+  retry_first: number;
+  retry_second: number;
+  uninhabited: number;
+  no_answer: number;
 }
 
 interface TeamStats {
@@ -42,6 +46,10 @@ interface TeamStats {
   done: number;
   pending: number;
   refused: number;
+  retry_first: number;
+  retry_second: number;
+  uninhabited: number;
+  no_answer: number;
 }
 
 export default function StatisticsView() {
@@ -80,6 +88,10 @@ export default function StatisticsView() {
             done: addresses.filter((a: any) => a.status === "done").length,
             pending: addresses.filter((a: any) => a.status === "pending").length,
             refused: addresses.filter((a: any) => a.status === "refused").length,
+            retry_first: addresses.filter((a: any) => a.status === "retry_first").length,
+            retry_second: addresses.filter((a: any) => a.status === "retry_second").length,
+            uninhabited: addresses.filter((a: any) => a.status === "uninhabited").length,
+            no_answer: addresses.filter((a: any) => a.status === "no_answer").length,
           };
         });
         setZoneStats(zStats);
@@ -96,6 +108,10 @@ export default function StatisticsView() {
           let done = 0;
           let pending = 0;
           let refused = 0;
+          let retry_first = 0;
+          let retry_second = 0;
+          let uninhabited = 0;
+          let no_answer = 0;
           
           teamZones.forEach((zone: any) => {
             const addresses = zone.addresses || [];
@@ -103,6 +119,10 @@ export default function StatisticsView() {
             done += addresses.filter((a: any) => a.status === "done").length;
             pending += addresses.filter((a: any) => a.status === "pending").length;
             refused += addresses.filter((a: any) => a.status === "refused").length;
+            retry_first += addresses.filter((a: any) => a.status === "retry_first").length;
+            retry_second += addresses.filter((a: any) => a.status === "retry_second").length;
+            uninhabited += addresses.filter((a: any) => a.status === "uninhabited").length;
+            no_answer += addresses.filter((a: any) => a.status === "no_answer").length;
           });
           
           return {
@@ -115,6 +135,10 @@ export default function StatisticsView() {
             done,
             pending,
             refused,
+            retry_first,
+            retry_second,
+            uninhabited,
+            no_answer,
           };
         });
         setTeamStats(tStats);
@@ -178,15 +202,31 @@ export default function StatisticsView() {
                     config={{
                       done: {
                         label: "Faites",
-                        color: "hsl(142, 76%, 36%)",
+                        color: "#22c55e",
                       },
                       pending: {
                         label: "En attente",
-                        color: "hsl(217, 91%, 60%)",
+                        color: "#94a3b8",
                       },
                       refused: {
                         label: "Refusées",
-                        color: "hsl(0, 84%, 60%)",
+                        color: "#ef4444",
+                      },
+                      retry_first: {
+                        label: "Repasse 1",
+                        color: "#f59e0b",
+                      },
+                      retry_second: {
+                        label: "Repasse 2",
+                        color: "#f97316",
+                      },
+                      uninhabited: {
+                        label: "Inhabité",
+                        color: "#000000",
+                      },
+                      no_answer: {
+                        label: "Pas rép.",
+                        color: "#a855f7",
                       },
                     }}
                   >
@@ -203,9 +243,13 @@ export default function StatisticsView() {
                         <YAxis tick={{ fill: 'hsl(var(--foreground))' }} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                        <Bar dataKey="done" fill="hsl(142, 76%, 36%)" name="Faites" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="pending" fill="hsl(217, 91%, 60%)" name="En attente" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="refused" fill="hsl(0, 84%, 60%)" name="Refusées" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="done" fill="#22c55e" name="Faites" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="pending" fill="#94a3b8" name="En attente" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="retry_first" fill="#f59e0b" name="Repasse 1" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="retry_second" fill="#f97316" name="Repasse 2" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="refused" fill="#ef4444" name="Refusées" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="uninhabited" fill="#000000" name="Inhabité" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="no_answer" fill="#a855f7" name="Pas rép." radius={[8, 8, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </ChartContainer>
@@ -224,22 +268,38 @@ export default function StatisticsView() {
                         {getCompletionRate(zone.done, zone.total_addresses)}%
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 text-sm">
                       <div>
                         <p className="text-muted-foreground">Total</p>
                         <p className="font-semibold">{zone.total_addresses}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Faites</p>
-                        <p className="font-semibold text-green-600">{zone.done}</p>
+                        <p className="font-semibold" style={{ color: '#22c55e' }}>{zone.done}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">En attente</p>
-                        <p className="font-semibold text-blue-600">{zone.pending}</p>
+                        <p className="font-semibold" style={{ color: '#94a3b8' }}>{zone.pending}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Repasse 1</p>
+                        <p className="font-semibold" style={{ color: '#f59e0b' }}>{zone.retry_first}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Repasse 2</p>
+                        <p className="font-semibold" style={{ color: '#f97316' }}>{zone.retry_second}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Refusées</p>
-                        <p className="font-semibold text-red-600">{zone.refused}</p>
+                        <p className="font-semibold" style={{ color: '#ef4444' }}>{zone.refused}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Inhabité</p>
+                        <p className="font-semibold" style={{ color: '#000000' }}>{zone.uninhabited}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Pas rép.</p>
+                        <p className="font-semibold" style={{ color: '#a855f7' }}>{zone.no_answer}</p>
                       </div>
                     </div>
                   </div>
@@ -327,15 +387,31 @@ export default function StatisticsView() {
                     config={{
                       done: {
                         label: "Faites",
-                        color: "hsl(142, 76%, 36%)",
+                        color: "#22c55e",
                       },
                       pending: {
                         label: "En attente",
-                        color: "hsl(217, 91%, 60%)",
+                        color: "#94a3b8",
                       },
                       refused: {
                         label: "Refusées",
-                        color: "hsl(0, 84%, 60%)",
+                        color: "#ef4444",
+                      },
+                      retry_first: {
+                        label: "Repasse 1",
+                        color: "#f59e0b",
+                      },
+                      retry_second: {
+                        label: "Repasse 2",
+                        color: "#f97316",
+                      },
+                      uninhabited: {
+                        label: "Inhabité",
+                        color: "#000000",
+                      },
+                      no_answer: {
+                        label: "Pas rép.",
+                        color: "#a855f7",
                       },
                     }}
                   >
@@ -352,9 +428,13 @@ export default function StatisticsView() {
                         <YAxis tick={{ fill: 'hsl(var(--foreground))' }} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Legend wrapperStyle={{ paddingTop: '10px' }} />
-                        <Bar dataKey="done" fill="hsl(142, 76%, 36%)" name="Faites" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="pending" fill="hsl(217, 91%, 60%)" name="En attente" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="refused" fill="hsl(0, 84%, 60%)" name="Refusées" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="done" fill="#22c55e" name="Faites" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="pending" fill="#94a3b8" name="En attente" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="retry_first" fill="#f59e0b" name="Repasse 1" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="retry_second" fill="#f97316" name="Repasse 2" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="refused" fill="#ef4444" name="Refusées" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="uninhabited" fill="#000000" name="Inhabité" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="no_answer" fill="#a855f7" name="Pas rép." radius={[8, 8, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </ChartContainer>
@@ -371,7 +451,7 @@ export default function StatisticsView() {
                         <h3 className="font-semibold">{team.team_name}</h3>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2 text-sm">
                       <div>
                         <p className="text-muted-foreground">Membres</p>
                         <p className="font-semibold">{team.total_members}</p>
@@ -386,15 +466,31 @@ export default function StatisticsView() {
                       </div>
                       <div>
                         <p className="text-muted-foreground">Faites</p>
-                        <p className="font-semibold text-green-600">{team.done}</p>
+                        <p className="font-semibold" style={{ color: '#22c55e' }}>{team.done}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">En attente</p>
-                        <p className="font-semibold text-blue-600">{team.pending}</p>
+                        <p className="font-semibold" style={{ color: '#94a3b8' }}>{team.pending}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Repasse 1</p>
+                        <p className="font-semibold" style={{ color: '#f59e0b' }}>{team.retry_first}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Repasse 2</p>
+                        <p className="font-semibold" style={{ color: '#f97316' }}>{team.retry_second}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Refusées</p>
-                        <p className="font-semibold text-red-600">{team.refused}</p>
+                        <p className="font-semibold" style={{ color: '#ef4444' }}>{team.refused}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Inhabité</p>
+                        <p className="font-semibold" style={{ color: '#000000' }}>{team.uninhabited}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Pas rép.</p>
+                        <p className="font-semibold" style={{ color: '#a855f7' }}>{team.no_answer}</p>
                       </div>
                     </div>
                   </div>
