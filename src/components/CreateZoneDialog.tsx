@@ -134,20 +134,39 @@ export default function CreateZoneDialog({ open, onOpenChange, polygon, addresse
       if (addressesInZone.length > 0) {
         console.log('Updating addresses with zone_id:', zoneData.id);
         
-        const { data: updateData, error: updateError } = await supabase
-          .from("addresses")
-          .update({ zone_id: zoneData.id })
-          .in("id", addressesInZone.map(a => a.id))
-          .select();
+        // Chunking pour éviter les problèmes de "Bad Request" avec trop d'IDs
+        const CHUNK_SIZE = 300;
+        const addressIds = addressesInZone.map(a => a.id);
+        let totalUpdated = 0;
 
-        console.log('Update result:', updateData, 'Error:', updateError);
+        for (let i = 0; i < addressIds.length; i += CHUNK_SIZE) {
+          const chunk = addressIds.slice(i, i + CHUNK_SIZE);
+          console.log(`Updating chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(addressIds.length / CHUNK_SIZE)}: ${chunk.length} addresses`);
+          
+          const { data: updateData, error: updateError } = await supabase
+            .from("addresses")
+            .update({ zone_id: zoneData.id })
+            .in("id", chunk)
+            .select();
 
-        if (updateError) {
-          console.error('Address update error:', updateError);
-          throw updateError;
+          if (updateError) {
+            console.error('Address update error:', updateError);
+            
+            // Message spécifique pour les erreurs RLS
+            if (updateError.message?.includes('row level security') || updateError.message?.includes('permission')) {
+              toast.error("Vous devez être administrateur pour assigner des adresses aux zones");
+            } else {
+              toast.error(`Erreur lors de l'assignation des adresses: ${updateError.message}`);
+            }
+            throw updateError;
+          }
+
+          totalUpdated += updateData?.length || 0;
+          console.log(`Chunk updated: ${updateData?.length || 0} addresses`);
         }
 
-        toast.success(`Zone créée avec ${updateData?.length || 0} adresse(s) assignée(s)`);
+        console.log(`Total addresses updated: ${totalUpdated}`);
+        toast.success(`Zone créée avec ${totalUpdated} adresse(s) assignée(s)`);
       } else {
         toast.success("Zone créée sans adresse assignée");
       }

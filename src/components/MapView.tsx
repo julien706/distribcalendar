@@ -1003,38 +1003,41 @@ export default function MapView() {
       // Convert coordinates back to LatLng format
       const latlngs: [number, number][] = zone.boundary_coordinates.map(coord => [coord[1], coord[0]]);
       
-      // Create interactive polygon
+      // Create polygon (interactive only in zone mode)
+      const isInteractive = isAdmin && zoneMode;
       const polygon = L.polygon(latlngs, {
         color: zone.color,
         fillColor: zone.color,
         fillOpacity: 0.15,
         weight: 1.5,
         opacity: 0.6,
-        interactive: true,  // Rendre cliquable
-        pane: 'overlayPane' // Mettre dans le bon pane
+        interactive: isInteractive,
+        pane: 'overlayPane'
       });
 
-      // Event handlers
-      polygon.on('click', (e: L.LeafletMouseEvent) => {
-        L.DomEvent.stopPropagation(e);
-        setEditingZone(zone);
-        setShowEditZone(true);
-        toast.info(`Zone: ${zone.name}`);
-      });
-
-      polygon.on('mouseover', function() {
-        this.setStyle({
-          fillOpacity: 0.3,
-          weight: 3
+      // Event handlers only if interactive
+      if (isInteractive) {
+        polygon.on('click', (e: L.LeafletMouseEvent) => {
+          L.DomEvent.stopPropagation(e);
+          setEditingZone(zone);
+          setShowEditZone(true);
+          toast.info(`Zone: ${zone.name}`);
         });
-      });
 
-      polygon.on('mouseout', function() {
-        this.setStyle({
-          fillOpacity: 0.15,
-          weight: 1.5
+        polygon.on('mouseover', function() {
+          this.setStyle({
+            fillOpacity: 0.3,
+            weight: 3
+          });
         });
-      });
+
+        polygon.on('mouseout', function() {
+          this.setStyle({
+            fillOpacity: 0.15,
+            weight: 1.5
+          });
+        });
+      }
 
       // Ajouter un tooltip permanent pour voir le nom de la zone
       if (zone.name) {
@@ -1060,7 +1063,7 @@ export default function MapView() {
       
       polygon.addTo(zonesLayerRef.current!);
     });
-  }, [zones, showZones, isAdmin]);
+  }, [zones, showZones, isAdmin, zoneMode]);
 
   // Memoize filtered addresses to avoid recalculation
   const filteredAddresses = useMemo(() => {
