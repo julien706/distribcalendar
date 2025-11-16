@@ -1003,15 +1003,37 @@ export default function MapView() {
       // Convert coordinates back to LatLng format
       const latlngs: [number, number][] = zone.boundary_coordinates.map(coord => [coord[1], coord[0]]);
       
-      // Create non-interactive polygon (background)
+      // Create interactive polygon
       const polygon = L.polygon(latlngs, {
         color: zone.color,
         fillColor: zone.color,
-        fillOpacity: 0.15,  // Plus transparent pour être en arrière-plan
-        weight: 1.5,        // Bordure plus fine
-        opacity: 0.6,       // Bordure plus transparente
-        interactive: false, // NON CLIQUABLE
-        pane: 'tilePane'    // Placer dans le pane des tuiles (arrière-plan)
+        fillOpacity: 0.15,
+        weight: 1.5,
+        opacity: 0.6,
+        interactive: true,  // Rendre cliquable
+        pane: 'overlayPane' // Mettre dans le bon pane
+      });
+
+      // Event handlers
+      polygon.on('click', (e: L.LeafletMouseEvent) => {
+        L.DomEvent.stopPropagation(e);
+        setEditingZone(zone);
+        setShowEditZone(true);
+        toast.info(`Zone: ${zone.name}`);
+      });
+
+      polygon.on('mouseover', function() {
+        this.setStyle({
+          fillOpacity: 0.3,
+          weight: 3
+        });
+      });
+
+      polygon.on('mouseout', function() {
+        this.setStyle({
+          fillOpacity: 0.15,
+          weight: 1.5
+        });
       });
 
       // Ajouter un tooltip permanent pour voir le nom de la zone

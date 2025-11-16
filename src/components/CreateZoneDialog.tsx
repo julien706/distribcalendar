@@ -88,6 +88,13 @@ export default function CreateZoneDialog({ open, onOpenChange, polygon, addresse
       // Convert polygon to GeoJSON format
       const coordinates = polygon.map(p => [p.lng, p.lat]);
       
+      console.log('Creating zone with:', {
+        name: name.trim(),
+        color,
+        team_id: teamId || null,
+        coordinates: coordinates.length
+      });
+      
       // Create zone
       const { data: zoneData, error: zoneError } = await supabase
         .from("zones")
@@ -100,22 +107,47 @@ export default function CreateZoneDialog({ open, onOpenChange, polygon, addresse
         .select()
         .single();
 
-      if (zoneError) throw zoneError;
+      if (zoneError) {
+        console.error('Zone creation error:', zoneError);
+        throw zoneError;
+      }
+      
+      console.log('Zone created successfully:', zoneData);
 
       // Find addresses inside the polygon that are NOT already assigned to another zone
-      const addressesInZone = addresses.filter(addr => 
-        !addr.zone_id && isPointInPolygon({ lat: addr.latitude, lng: addr.longitude }, polygon)
-      );
+      console.log('Total addresses:', addresses.length);
+      console.log('Polygon points:', polygon.length);
+      
+      const addressesInZone = addresses.filter(addr => {
+        const inside = !addr.zone_id && isPointInPolygon(
+          { lat: addr.latitude, lng: addr.longitude }, 
+          polygon
+        );
+        if (inside || (!addr.zone_id && Math.abs(addr.latitude - polygon[0].lat) < 0.01)) {
+          console.log(`Address ${addr.id}: lat=${addr.latitude}, lng=${addr.longitude}, inside=${inside}`);
+        }
+        return inside;
+      });
+
+      console.log('Addresses to assign:', addressesInZone.length, addressesInZone.map(a => a.id));
 
       if (addressesInZone.length > 0) {
-        const { error: updateError } = await supabase
+        console.log('Updating addresses with zone_id:', zoneData.id);
+        
+        const { data: updateData, error: updateError } = await supabase
           .from("addresses")
           .update({ zone_id: zoneData.id })
-          .in("id", addressesInZone.map(a => a.id));
+          .in("id", addressesInZone.map(a => a.id))
+          .select();
 
-        if (updateError) throw updateError;
+        console.log('Update result:', updateData, 'Error:', updateError);
 
-        toast.success(`Zone créée avec ${addressesInZone.length} adresse(s) assignée(s)`);
+        if (updateError) {
+          console.error('Address update error:', updateError);
+          throw updateError;
+        }
+
+        toast.success(`Zone créée avec ${updateData?.length || 0} adresse(s) assignée(s)`);
       } else {
         toast.success("Zone créée sans adresse assignée");
       }
