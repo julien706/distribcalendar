@@ -52,77 +52,127 @@ interface TeamStats {
   no_answer: number;
 }
 
+const STATUS_OPTIONS = [
+  { key: 'done', label: 'Faites', color: '#22c55e' },
+  { key: 'pending', label: 'En attente', color: '#94a3b8' },
+  { key: 'retry_first', label: 'Repasse 1', color: '#f59e0b' },
+  { key: 'retry_second', label: 'Repasse 2', color: '#f97316' },
+  { key: 'refused', label: 'Refusées', color: '#ef4444' },
+  { key: 'uninhabited', label: 'Inhabité', color: '#000000' },
+  { key: 'no_answer', label: 'Pas rép.', color: '#a855f7' },
+];
+
 export default function StatisticsView() {
   const [zoneStats, setZoneStats] = useState<ZoneStats[]>([]);
   const [teamStats, setTeamStats] = useState<TeamStats[]>([]);
   const [loading, setLoading] = useState(true);
   const { data: addressStats } = useAddressesWithApartments();
+  const [selectedZones, setSelectedZones] = useState<string[]>([]);
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(
+    STATUS_OPTIONS.map(s => s.key)
+  );
 
   useEffect(() => {
     fetchStatistics();
   }, []);
 
+  useEffect(() => {
+    if (zoneStats.length > 0 && selectedZones.length === 0) {
+      setSelectedZones(zoneStats.map(z => z.zone_id));
+    }
+  }, [zoneStats]);
+
+  useEffect(() => {
+    if (teamStats.length > 0 && selectedTeams.length === 0) {
+      setSelectedTeams(teamStats.map(t => t.team_id));
+    }
+  }, [teamStats]);
+
   const fetchStatistics = async () => {
     try {
       setLoading(true);
 
-      // Fetch zones with team info
+      // Fetch zones with addresses AND apartments
       const { data: zones } = await supabase
         .from("zones")
-        .select("id, name, color, team_id, addresses(id, status)");
+        .select(`
+          id, 
+          name, 
+          color, 
+          team_id, 
+          addresses(
+            id, 
+            status, 
+            is_building,
+            apartments(status)
+          )
+        `);
 
       // Fetch teams
       const { data: teams } = await supabase
         .from("teams")
         .select("id, name, color, team_members(user_id), zones(id)");
 
-      // Calculate zone stats
+      // Calculate zone stats with correct counting
       if (zones) {
         const zStats = zones.map((zone: any) => {
           const addresses = zone.addresses || [];
+          
+          // Separate simple addresses and buildings
+          const simpleAddresses = addresses.filter((a: any) => !a.is_building);
+          const buildings = addresses.filter((a: any) => a.is_building);
+          
+          // Collect all statuses (addresses + apartments)
+          const allStatuses: string[] = [];
+          
+          // Add simple address statuses
+          simpleAddresses.forEach((a: any) => allStatuses.push(a.status));
+          
+          // Add apartment statuses from buildings
+          buildings.forEach((building: any) => {
+            if (building.apartments) {
+              building.apartments.forEach((apt: any) => allStatuses.push(apt.status));
+            }
+          });
+          
           return {
             zone_id: zone.id,
             zone_name: zone.name,
             zone_color: zone.color,
-            total_addresses: addresses.length,
-            done: addresses.filter((a: any) => a.status === "done").length,
-            pending: addresses.filter((a: any) => a.status === "pending").length,
-            refused: addresses.filter((a: any) => a.status === "refused").length,
-            retry_first: addresses.filter((a: any) => a.status === "retry_first").length,
-            retry_second: addresses.filter((a: any) => a.status === "retry_second").length,
-            uninhabited: addresses.filter((a: any) => a.status === "uninhabited").length,
-            no_answer: addresses.filter((a: any) => a.status === "no_answer").length,
+            total_addresses: allStatuses.length,
+            done: allStatuses.filter(s => s === "done").length,
+            pending: allStatuses.filter(s => s === "pending").length,
+            refused: allStatuses.filter(s => s === "refused").length,
+            retry_first: allStatuses.filter(s => s === "retry_first").length,
+            retry_second: allStatuses.filter(s => s === "retry_second").length,
+            uninhabited: allStatuses.filter(s => s === "uninhabited").length,
+            no_answer: allStatuses.filter(s => s === "no_answer").length,
           };
         });
         setZoneStats(zStats);
       }
 
-      // Calculate team stats
+      // Calculate team stats with correct counting
       if (teams && zones) {
         const tStats = teams.map((team: any) => {
           const teamZones = zones.filter((z: any) => z.team_id === team.id);
           const members = team.team_members || [];
           
-          // Calculate totals from all team zones
-          let total_addresses = 0;
-          let done = 0;
-          let pending = 0;
-          let refused = 0;
-          let retry_first = 0;
-          let retry_second = 0;
-          let uninhabited = 0;
-          let no_answer = 0;
+          // Collect all statuses from all zones of the team
+          const allStatuses: string[] = [];
           
           teamZones.forEach((zone: any) => {
             const addresses = zone.addresses || [];
-            total_addresses += addresses.length;
-            done += addresses.filter((a: any) => a.status === "done").length;
-            pending += addresses.filter((a: any) => a.status === "pending").length;
-            refused += addresses.filter((a: any) => a.status === "refused").length;
-            retry_first += addresses.filter((a: any) => a.status === "retry_first").length;
-            retry_second += addresses.filter((a: any) => a.status === "retry_second").length;
-            uninhabited += addresses.filter((a: any) => a.status === "uninhabited").length;
-            no_answer += addresses.filter((a: any) => a.status === "no_answer").length;
+            const simpleAddresses = addresses.filter((a: any) => !a.is_building);
+            const buildings = addresses.filter((a: any) => a.is_building);
+            
+            simpleAddresses.forEach((a: any) => allStatuses.push(a.status));
+            buildings.forEach((building: any) => {
+              if (building.apartments) {
+                building.apartments.forEach((apt: any) => allStatuses.push(apt.status));
+              }
+            });
           });
           
           return {
@@ -131,14 +181,14 @@ export default function StatisticsView() {
             team_color: team.color,
             total_members: members.length,
             total_zones: teamZones.length,
-            total_addresses,
-            done,
-            pending,
-            refused,
-            retry_first,
-            retry_second,
-            uninhabited,
-            no_answer,
+            total_addresses: allStatuses.length,
+            done: allStatuses.filter(s => s === "done").length,
+            pending: allStatuses.filter(s => s === "pending").length,
+            refused: allStatuses.filter(s => s === "refused").length,
+            retry_first: allStatuses.filter(s => s === "retry_first").length,
+            retry_second: allStatuses.filter(s => s === "retry_second").length,
+            uninhabited: allStatuses.filter(s => s === "uninhabited").length,
+            no_answer: allStatuses.filter(s => s === "no_answer").length,
           };
         });
         setTeamStats(tStats);
@@ -197,64 +247,148 @@ export default function StatisticsView() {
               </p>
             ) : (
               <>
-                <div className="h-[350px] w-full">
-                  <ChartContainer
-                    config={{
-                      done: {
-                        label: "Faites",
-                        color: "#22c55e",
-                      },
-                      pending: {
-                        label: "En attente",
-                        color: "#94a3b8",
-                      },
-                      refused: {
-                        label: "Refusées",
-                        color: "#ef4444",
-                      },
-                      retry_first: {
-                        label: "Repasse 1",
-                        color: "#f59e0b",
-                      },
-                      retry_second: {
-                        label: "Repasse 2",
-                        color: "#f97316",
-                      },
-                      uninhabited: {
-                        label: "Inhabité",
-                        color: "#000000",
-                      },
-                      no_answer: {
-                        label: "Pas rép.",
-                        color: "#a855f7",
-                      },
-                    }}
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={zoneStats} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis 
-                          dataKey="zone_name" 
-                          tick={{ fill: 'hsl(var(--foreground))' }}
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
+                {/* Zone Selection */}
+                <div className="mb-4 p-4 border rounded-lg bg-muted/50">
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Sélectionner les zones à comparer
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {zoneStats.map((zone) => (
+                      <label key={zone.zone_id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedZones.includes(zone.zone_id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedZones([...selectedZones, zone.zone_id]);
+                            } else {
+                              setSelectedZones(selectedZones.filter(id => id !== zone.zone_id));
+                            }
+                          }}
+                          className="w-4 h-4"
                         />
-                        <YAxis tick={{ fill: 'hsl(var(--foreground))' }} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                        <Bar dataKey="done" fill="#22c55e" name="Faites" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="pending" fill="#94a3b8" name="En attente" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="retry_first" fill="#f59e0b" name="Repasse 1" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="retry_second" fill="#f97316" name="Repasse 2" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="refused" fill="#ef4444" name="Refusées" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="uninhabited" fill="#000000" name="Inhabité" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="no_answer" fill="#a855f7" name="Pas rép." radius={[8, 8, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
+                        <div
+                          className="w-3 h-3 rounded"
+                          style={{ backgroundColor: zone.zone_color }}
+                        />
+                        <span className="text-sm">{zone.zone_name}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-                {zoneStats.map((zone) => (
+
+                {/* Status Selection */}
+                <div className="mb-4 p-4 border rounded-lg bg-muted/50">
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Sélectionner les status à afficher
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {STATUS_OPTIONS.map((status) => (
+                      <label key={status.key} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedStatuses.includes(status.key)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedStatuses([...selectedStatuses, status.key]);
+                            } else {
+                              setSelectedStatuses(selectedStatuses.filter(k => k !== status.key));
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <div
+                          className="w-3 h-3 rounded"
+                          style={{ backgroundColor: status.color }}
+                        />
+                        <span className="text-sm">{status.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Chart Container */}
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="h-[400px] w-full">
+                      <ChartContainer
+                        config={{
+                          done: {
+                            label: "Faites",
+                            color: "#22c55e",
+                          },
+                          pending: {
+                            label: "En attente",
+                            color: "#94a3b8",
+                          },
+                          refused: {
+                            label: "Refusées",
+                            color: "#ef4444",
+                          },
+                          retry_first: {
+                            label: "Repasse 1",
+                            color: "#f59e0b",
+                          },
+                          retry_second: {
+                            label: "Repasse 2",
+                            color: "#f97316",
+                          },
+                          uninhabited: {
+                            label: "Inhabité",
+                            color: "#000000",
+                          },
+                          no_answer: {
+                            label: "Pas rép.",
+                            color: "#a855f7",
+                          },
+                        }}
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={zoneStats.filter(z => selectedZones.includes(z.zone_id))} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                            <XAxis 
+                              dataKey="zone_name" 
+                              tick={{ fill: 'hsl(var(--foreground))' }}
+                              angle={-45}
+                              textAnchor="end"
+                              height={100}
+                            />
+                            <YAxis tick={{ fill: 'hsl(var(--foreground))' }} />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                            {selectedStatuses.includes('done') && (
+                              <Bar dataKey="done" fill="#22c55e" name="Faites" radius={[8, 8, 0, 0]} />
+                            )}
+                            {selectedStatuses.includes('pending') && (
+                              <Bar dataKey="pending" fill="#94a3b8" name="En attente" radius={[8, 8, 0, 0]} />
+                            )}
+                            {selectedStatuses.includes('retry_first') && (
+                              <Bar dataKey="retry_first" fill="#f59e0b" name="Repasse 1" radius={[8, 8, 0, 0]} />
+                            )}
+                            {selectedStatuses.includes('retry_second') && (
+                              <Bar dataKey="retry_second" fill="#f97316" name="Repasse 2" radius={[8, 8, 0, 0]} />
+                            )}
+                            {selectedStatuses.includes('refused') && (
+                              <Bar dataKey="refused" fill="#ef4444" name="Refusées" radius={[8, 8, 0, 0]} />
+                            )}
+                            {selectedStatuses.includes('uninhabited') && (
+                              <Bar dataKey="uninhabited" fill="#000000" name="Inhabité" radius={[8, 8, 0, 0]} />
+                            )}
+                            {selectedStatuses.includes('no_answer') && (
+                              <Bar dataKey="no_answer" fill="#a855f7" name="Pas rép." radius={[8, 8, 0, 0]} />
+                            )}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Zone Details */}
+                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                  {zoneStats.filter(z => selectedZones.includes(z.zone_id)).map((zone) => (
                   <div key={zone.zone_id} className="border rounded-lg p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -304,6 +438,7 @@ export default function StatisticsView() {
                     </div>
                   </div>
                 ))}
+                </div>
               </>
             )}
           </TabsContent>
@@ -315,6 +450,68 @@ export default function StatisticsView() {
               </p>
             ) : (
               <>
+                {/* Team Selection */}
+                <div className="mb-4 p-4 border rounded-lg bg-muted/50">
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <Group className="h-4 w-4" />
+                    Sélectionner les équipes à comparer
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {teamStats.map((team) => (
+                      <label key={team.team_id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedTeams.includes(team.team_id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedTeams([...selectedTeams, team.team_id]);
+                            } else {
+                              setSelectedTeams(selectedTeams.filter(id => id !== team.team_id));
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <div
+                          className="w-3 h-3 rounded"
+                          style={{ backgroundColor: team.team_color }}
+                        />
+                        <span className="text-sm">{team.team_name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Status Selection */}
+                <div className="mb-4 p-4 border rounded-lg bg-muted/50">
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Sélectionner les status à afficher
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {STATUS_OPTIONS.map((status) => (
+                      <label key={status.key} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedStatuses.includes(status.key)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedStatuses([...selectedStatuses, status.key]);
+                            } else {
+                              setSelectedStatuses(selectedStatuses.filter(k => k !== status.key));
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <div
+                          className="w-3 h-3 rounded"
+                          style={{ backgroundColor: status.color }}
+                        />
+                        <span className="text-sm">{status.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="h-[350px]">
                     <ChartContainer
@@ -337,7 +534,7 @@ export default function StatisticsView() {
                             fill="#8884d8"
                             dataKey="value"
                           >
-                            {teamStats.map((team, index) => (
+                            {teamStats.filter(t => selectedTeams.includes(t.team_id)).map((team, index) => (
                               <Cell key={`cell-${index}`} fill={team.team_color} />
                             ))}
                           </Pie>
@@ -361,7 +558,7 @@ export default function StatisticsView() {
                       }}
                     >
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={teamStats} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                        <BarChart data={teamStats.filter(t => selectedTeams.includes(t.team_id))} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                           <XAxis 
                             dataKey="team_name" 
@@ -382,65 +579,86 @@ export default function StatisticsView() {
                   </div>
                 </div>
                 
-                <div className="h-[400px] w-full">
-                  <ChartContainer
-                    config={{
-                      done: {
-                        label: "Faites",
-                        color: "#22c55e",
-                      },
-                      pending: {
-                        label: "En attente",
-                        color: "#94a3b8",
-                      },
-                      refused: {
-                        label: "Refusées",
-                        color: "#ef4444",
-                      },
-                      retry_first: {
-                        label: "Repasse 1",
-                        color: "#f59e0b",
-                      },
-                      retry_second: {
-                        label: "Repasse 2",
-                        color: "#f97316",
-                      },
-                      uninhabited: {
-                        label: "Inhabité",
-                        color: "#000000",
-                      },
-                      no_answer: {
-                        label: "Pas rép.",
-                        color: "#a855f7",
-                      },
-                    }}
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={teamStats} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis 
-                          dataKey="team_name" 
-                          tick={{ fill: 'hsl(var(--foreground))' }}
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                        />
-                        <YAxis tick={{ fill: 'hsl(var(--foreground))' }} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Legend wrapperStyle={{ paddingTop: '10px' }} />
-                        <Bar dataKey="done" fill="#22c55e" name="Faites" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="pending" fill="#94a3b8" name="En attente" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="retry_first" fill="#f59e0b" name="Repasse 1" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="retry_second" fill="#f97316" name="Repasse 2" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="refused" fill="#ef4444" name="Refusées" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="uninhabited" fill="#000000" name="Inhabité" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="no_answer" fill="#a855f7" name="Pas rép." radius={[8, 8, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                  <p className="text-sm text-center text-muted-foreground mt-2 font-medium">Statut des adresses par équipe</p>
-                </div>
-                {teamStats.map((team) => (
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="h-[400px] w-full">
+                      <ChartContainer
+                        config={{
+                          done: {
+                            label: "Faites",
+                            color: "#22c55e",
+                          },
+                          pending: {
+                            label: "En attente",
+                            color: "#94a3b8",
+                          },
+                          refused: {
+                            label: "Refusées",
+                            color: "#ef4444",
+                          },
+                          retry_first: {
+                            label: "Repasse 1",
+                            color: "#f59e0b",
+                          },
+                          retry_second: {
+                            label: "Repasse 2",
+                            color: "#f97316",
+                          },
+                          uninhabited: {
+                            label: "Inhabité",
+                            color: "#000000",
+                          },
+                          no_answer: {
+                            label: "Pas rép.",
+                            color: "#a855f7",
+                          },
+                        }}
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={teamStats.filter(t => selectedTeams.includes(t.team_id))} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                            <XAxis 
+                              dataKey="team_name" 
+                              tick={{ fill: 'hsl(var(--foreground))' }}
+                              angle={-45}
+                              textAnchor="end"
+                              height={100}
+                            />
+                            <YAxis tick={{ fill: 'hsl(var(--foreground))' }} />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                            {selectedStatuses.includes('done') && (
+                              <Bar dataKey="done" fill="#22c55e" name="Faites" radius={[8, 8, 0, 0]} />
+                            )}
+                            {selectedStatuses.includes('pending') && (
+                              <Bar dataKey="pending" fill="#94a3b8" name="En attente" radius={[8, 8, 0, 0]} />
+                            )}
+                            {selectedStatuses.includes('retry_first') && (
+                              <Bar dataKey="retry_first" fill="#f59e0b" name="Repasse 1" radius={[8, 8, 0, 0]} />
+                            )}
+                            {selectedStatuses.includes('retry_second') && (
+                              <Bar dataKey="retry_second" fill="#f97316" name="Repasse 2" radius={[8, 8, 0, 0]} />
+                            )}
+                            {selectedStatuses.includes('refused') && (
+                              <Bar dataKey="refused" fill="#ef4444" name="Refusées" radius={[8, 8, 0, 0]} />
+                            )}
+                            {selectedStatuses.includes('uninhabited') && (
+                              <Bar dataKey="uninhabited" fill="#000000" name="Inhabité" radius={[8, 8, 0, 0]} />
+                            )}
+                            {selectedStatuses.includes('no_answer') && (
+                              <Bar dataKey="no_answer" fill="#a855f7" name="Pas rép." radius={[8, 8, 0, 0]} />
+                            )}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
+                      <p className="text-sm text-center text-muted-foreground mt-2 font-medium">Statut des adresses par équipe</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Team Details */}
+                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                  {teamStats.filter(t => selectedTeams.includes(t.team_id)).map((team) => (
                   <div key={team.team_id} className="border rounded-lg p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -495,6 +713,7 @@ export default function StatisticsView() {
                     </div>
                   </div>
                 ))}
+                </div>
               </>
             )}
           </TabsContent>
