@@ -1,58 +1,62 @@
-# Propositions d'améliorations et d'optimisations
+# Années de distribution, montants collectés, tournées et suivi des calendriers
 
-Analyse faite sur les données réelles (3 525 adresses, 2 immeubles, 10 appartements, 2 368 adresses sans zone) et sur le code des écrans.
+Ajout d'un volet « campagne » à l'application : une année de distribution active, les montants encaissés lors du passage d'une adresse en « fait », des tournées d'équipe pouvant durer plusieurs jours, et le suivi par l'admin des calendriers remis/restitués et de l'argent reversé.
 
-## 1. Bug confirmé : les chiffres des statistiques sont faux
+## 1. Année de distribution
 
-Le serveur ne renvoie que 1 000 lignes maximum par requête. Vérifié : une demande de toutes les adresses renvoie 1 000 résultats sur 3 525.
+- Nouvel espace « Années » dans l'administration : créer une année (nom, année, date de début), la rendre active, la clôturer.
+- Une seule année active à la fois. Tout ce qui est enregistré (montants, tournées, stock, versements) est rattaché à l'année active.
+- Les adresses, zones et équipes restent communes à toutes les années — rien n'est dupliqué.
+- Un sélecteur d'année dans les statistiques et le journal permet de consulter les années passées.
+- Bouton optionnel, avec confirmation, pour remettre toutes les adresses en « en attente » au démarrage d'une nouvelle année.
 
-L'écran Statistiques et le total affiché en haut de la liste utilisent une requête sans découpage, donc ils comptent au mieux 1 000 adresses sur 3 525. La carte et la liste, elles, chargent bien par paquets et sont correctes.
+## 2. Montant reçu pour un calendrier
 
-Correction : charger les adresses et les appartements par paquets de 1 000 jusqu'au bout, comme le fait déjà la carte.
+- Dans le popup d'une adresse (et de chaque appartement d'immeuble), quand on passe le statut en « fait », un champ montant facultatif apparaît : on peut valider sans rien saisir.
+- Saisie rapide avec des montants suggérés (5, 10, 15, 20 €) plus un champ libre.
+- Le montant est rattaché à l'année active, à la tournée en cours s'il y en a une, et à la personne qui l'a saisi.
+- Le montant reste modifiable ensuite depuis le popup et depuis la liste.
 
-Priorité : haute. C'est la seule anomalie fonctionnelle trouvée.
+## 3. Tournées d'équipe
 
-## 2. Vitesse de chargement
+- Bouton « Démarrer une tournée » sur la carte : on choisit l'équipe, la tournée s'ouvre et reste ouverte tant qu'on ne l'arrête pas, même sur plusieurs jours.
+- Pendant la tournée : bandeau permanent affichant la durée, le nombre d'adresses faites et le total encaissé en direct.
+- « Arrêter la tournée » ouvre un récapitulatif : total calculé, nombre d'adresses faites, et un champ « montant réellement compté » pour corriger l'écart, avec une note explicative.
+- Historique des tournées consultable dans l'administration : équipe, dates de début/fin, total calculé, total corrigé, écart.
+- Plusieurs membres d'une même équipe peuvent contribuer à la tournée ouverte de leur équipe.
 
-- Aujourd'hui, chaque écran (carte, liste, statistiques) recharge sa propre copie des 3 525 adresses. Mutualiser un seul chargement partagé évite de tout retélécharger en changeant d'onglet.
-- Pour les statistiques, faire calculer les compteurs par le serveur plutôt que de rapatrier toutes les lignes : réponse quasi instantanée au lieu de 4 allers-retours.
-- Ne demander que les colonnes utiles pour la carte (aujourd'hui tout est rapatrié, y compris les données brutes d'import qui ne servent pas à l'affichage).
+## 4. Calendriers et versements (saisie par l'admin)
 
-## 3. Fiabilité sur le terrain
+Nouvel onglet « Calendriers & caisse » dans l'administration, pour l'année active :
 
-- Mode hors connexion réel : mémoriser les changements de statut faits sans réseau et les envoyer automatiquement au retour du signal. Aujourd'hui une validation sans réseau est perdue.
-- Confirmation visuelle immédiate lors d'un changement de statut, avec retour en arrière si l'enregistrement échoue.
-- Avertissement quand deux distributeurs modifient la même adresse en même temps.
+- Ligne par distributeur et par équipe : calendriers remis, calendriers restitués, calendriers écoulés (calculé), montant encaissé (calculé depuis les adresses), montant déjà reversé, reste à reverser.
+- Enregistrement des remises de calendriers (date, quantité, bénéficiaire) et des restitutions.
+- Enregistrement des versements d'argent en une ou plusieurs fois (date, montant, moyen, commentaire) ; le solde se met à jour à chaque versement.
+- Totaux généraux en haut : calendriers en circulation, argent collecté, argent encaissé par l'admin, reste dû.
 
-## 4. Confort d'utilisation
+## 5. Statistiques
 
-- Compteur de progression du jour (adresses faites aujourd'hui) visible sur la carte.
-- Recherche d'adresse directement depuis la carte, avec recentrage sur le résultat.
-- Regroupement par rue dans la liste, pour suivre une rue complète d'un coup d'œil.
-- Export des statistiques en fichier tableur pour un suivi hors application.
-
-## 5. Administration
-
-- 2 368 adresses ne sont rattachées à aucune zone : elles sont invisibles pour les distributeurs. Ajouter dans l'espace admin un indicateur du nombre d'adresses non rattachées et un bouton de réattribution automatique.
-- Suppression en masse d'adresses depuis la liste admin (actuellement une par une).
-- Historique visible par adresse depuis son popup, pas seulement dans le journal global.
-
-## 6. Qualité du code
-
-- L'écran carte fait 1 574 lignes et l'espace admin 739 : les découper en morceaux plus petits facilite les évolutions et réduit les régressions.
-- Retirer les messages de débogage laissés dans la carte.
-- Centraliser les accès aux données dans des hooks réutilisables plutôt que de refaire les mêmes requêtes dans chaque composant.
-
-## Ce que je propose de faire en premier
-
-1. Corriger les chiffres des statistiques (point 1).
-2. Ajouter l'indicateur et la réattribution des adresses sans zone (point 5).
-3. Accélérer les statistiques par un calcul côté serveur (point 2).
-
-Dites-moi lesquels vous voulez, dans l'ordre que vous préférez, et je détaille la mise en œuvre.
+- Ajout du montant total collecté, du montant moyen par calendrier et du taux de dons, filtrables par année, zone et équipe, en complément des compteurs existants.
 
 ## Détails techniques
 
-- Limite PostgREST `max-rows` = 1000 ; `useAddressesWithApartments` fait deux `select` sans `.range()`, contrairement à `AddressList` et `MapView` qui paginent par lots.
-- Calcul serveur : fonction SQL `security definer` renvoyant les compteurs par statut avec les appartements comptés individuellement (option A déjà retenue), filtrable par zone/équipe.
-- Hors ligne : file d'attente locale (IndexedDB) rejouée à la reconnexion, PWA déjà en place via `vite-plugin-pwa`.
+Nouvelles tables (avec RLS et GRANT) :
+- `campaigns` : année, libellé, dates, indicateur d'année active (une seule active).
+- `donations` : adresse ou appartement, campagne, tournée, montant, utilisateur, date. Un enregistrement par passage en « fait » avec montant.
+- `rounds` (tournées) : équipe, campagne, démarrée par, début, fin, total calculé, total corrigé, note d'écart.
+- `calendar_stocks` : campagne, distributeur ou équipe, type (remise/restitution), quantité, date, saisi par.
+- `payments` : campagne, distributeur ou équipe, montant, date, moyen, commentaire, saisi par.
+
+Règles d'accès : lecture des montants et tournées limitée à l'équipe de l'utilisateur ; stock et versements en écriture pour les admins seulement, en lecture pour le distributeur concerné ; admin en accès total.
+
+Agrégats calculés par fonctions SQL `security definer` (totaux par tournée, par distributeur, par campagne) plutôt que côté navigateur, pour rester rapide sur les 3 525 adresses.
+
+Interface : nouveaux composants `CampaignManagement`, `RoundBanner`, `EndRoundDialog`, `CalendarStockView`, et extension de `MapPopup`, `BuildingPopup`, `StatisticsView` et `Admin`.
+
+## Ordre de réalisation proposé
+
+1. Années de distribution + sélecteur.
+2. Montant à la validation d'une adresse.
+3. Tournées d'équipe avec démarrage/arrêt et montant corrigé.
+4. Calendriers & caisse dans l'administration.
+5. Statistiques financières.
