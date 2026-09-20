@@ -158,6 +158,178 @@ export type Database = {
           },
         ]
       }
+      calendar_stocks: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          movement_type: string
+          note: string | null
+          quantity: number
+          recorded_at: string
+          recorded_by: string
+          team_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          movement_type: string
+          note?: string | null
+          quantity: number
+          recorded_at?: string
+          recorded_by: string
+          team_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          movement_type?: string
+          note?: string | null
+          quantity?: number
+          recorded_at?: string
+          recorded_by?: string
+          team_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_stocks_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_stocks_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_stocks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          created_at: string
+          end_date: string | null
+          id: string
+          is_active: boolean
+          name: string
+          start_date: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          start_date?: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          start_date?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      donations: {
+        Row: {
+          address_id: string | null
+          amount: number
+          apartment_id: string | null
+          campaign_id: string
+          collected_at: string
+          collected_by: string
+          created_at: string
+          id: string
+          round_id: string | null
+          team_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_id?: string | null
+          amount?: number
+          apartment_id?: string | null
+          campaign_id: string
+          collected_at?: string
+          collected_by: string
+          created_at?: string
+          id?: string
+          round_id?: string | null
+          team_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_id?: string | null
+          amount?: number
+          apartment_id?: string | null
+          campaign_id?: string
+          collected_at?: string
+          collected_by?: string
+          created_at?: string
+          id?: string
+          round_id?: string | null
+          team_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donations_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donations_apartment_id_fkey"
+            columns: ["apartment_id"]
+            isOneToOne: false
+            referencedRelation: "apartments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donations_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: false
+            referencedRelation: "rounds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitation_codes: {
         Row: {
           code: string
@@ -182,6 +354,67 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          campaign_id: string
+          created_at: string
+          id: string
+          method: string | null
+          note: string | null
+          paid_at: string
+          recorded_by: string
+          team_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          campaign_id: string
+          created_at?: string
+          id?: string
+          method?: string | null
+          note?: string | null
+          paid_at?: string
+          recorded_by: string
+          team_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          method?: string | null
+          note?: string | null
+          paid_at?: string
+          recorded_by?: string
+          team_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -205,6 +438,60 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      rounds: {
+        Row: {
+          campaign_id: string
+          corrected_amount: number | null
+          created_at: string
+          ended_at: string | null
+          id: string
+          note: string | null
+          started_at: string
+          started_by: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          corrected_amount?: number | null
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          note?: string | null
+          started_at?: string
+          started_by: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          corrected_amount?: number | null
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          note?: string | null
+          started_at?: string
+          started_by?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rounds_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rounds_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       team_members: {
         Row: {
@@ -344,6 +631,24 @@ export type Database = {
       calculate_building_status: {
         Args: { _address_id: string }
         Returns: Database["public"]["Enums"]["distribution_status"]
+      }
+      get_campaign_balance: {
+        Args: { _campaign_id: string }
+        Returns: {
+          collected: number
+          email: string
+          given: number
+          paid: number
+          returned: number
+          user_id: string
+        }[]
+      }
+      get_round_totals: {
+        Args: { _round_id: string }
+        Returns: {
+          donation_count: number
+          total_amount: number
+        }[]
       }
       get_user_team_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_zone_ids: { Args: { _user_id: string }; Returns: string[] }
