@@ -9,8 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Play, Square, Euro, Clock } from "lucide-react";
+import { Square, Euro, Clock, CalendarRange } from "lucide-react";
 import { toast } from "sonner";
 
 type Team = { id: string; name: string; color: string };
@@ -23,9 +22,7 @@ export default function RoundControl() {
   const invalidate = useInvalidateCampaignData();
 
   const [teams, setTeams] = useState<Team[]>([]);
-  const [startOpen, setStartOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState<string>("");
   const [correctedAmount, setCorrectedAmount] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -38,25 +35,6 @@ export default function RoundControl() {
     };
     load();
   }, [isAdmin, userTeamIds]);
-
-  const startRound = async () => {
-    if (!campaign || !selectedTeam || !user) return;
-    setSaving(true);
-    const { error } = await supabase.from("rounds").insert({
-      campaign_id: campaign.id,
-      team_id: selectedTeam,
-      started_by: user.id,
-    });
-    setSaving(false);
-    if (error) {
-      toast.error(error.message.includes("one_open_round") ? "Une tournée est déjà en cours pour cette équipe" : "Impossible de démarrer la tournée");
-      return;
-    }
-    toast.success("Tournée démarrée");
-    setStartOpen(false);
-    refetchRound();
-    invalidate();
-  };
 
   const endRound = async () => {
     if (!round) return;
@@ -95,53 +73,29 @@ export default function RoundControl() {
 
   return (
     <>
-      {round ? (
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="secondary" className="gap-1">
-            <Clock className="h-3 w-3" />
-            {teamName || "Tournée"} · j{durationDays}
-          </Badge>
-          <Badge className="gap-1">
-            <Euro className="h-3 w-3" />
-            {formatEuro(totals?.total ?? 0)} · {totals?.count ?? 0}
-          </Badge>
-          <Button size="sm" variant="destructive" className="h-8" onClick={openEnd}>
-            <Square className="h-4 w-4 sm:mr-1" />
-            <span className="hidden sm:inline">Arrêter</span>
-          </Button>
-        </div>
-      ) : (
-        <Button size="sm" variant="outline" className="h-8" onClick={() => setStartOpen(true)} disabled={teams.length === 0}>
-          <Play className="h-4 w-4 sm:mr-1" />
-          <span className="hidden sm:inline">Démarrer une tournée</span>
-        </Button>
-      )}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Badge variant="outline" className="gap-1 font-medium">
+          <CalendarRange className="h-3 w-3" />
+          {campaign.name}
+        </Badge>
 
-      <Dialog open={startOpen} onOpenChange={setStartOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Démarrer une tournée</DialogTitle>
-            <DialogDescription>
-              La tournée reste ouverte jusqu'à son arrêt, même sur plusieurs jours. Année : {campaign.name}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>Équipe</Label>
-            <Select value={selectedTeam} onValueChange={setSelectedTeam}>
-              <SelectTrigger><SelectValue placeholder="Choisir une équipe" /></SelectTrigger>
-              <SelectContent>
-                {teams.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setStartOpen(false)}>Annuler</Button>
-            <Button onClick={startRound} disabled={!selectedTeam || saving}>Démarrer</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {round && (
+          <>
+            <Badge variant="secondary" className="gap-1">
+              <Clock className="h-3 w-3" />
+              {teamName || "Tournée"} · j{durationDays}
+            </Badge>
+            <Badge className="gap-1">
+              <Euro className="h-3 w-3" />
+              {formatEuro(totals?.total ?? 0)} · {totals?.count ?? 0}
+            </Badge>
+            <Button size="sm" variant="destructive" className="h-8" onClick={openEnd}>
+              <Square className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Arrêter</span>
+            </Button>
+          </>
+        )}
+      </div>
 
       <Dialog open={endOpen} onOpenChange={setEndOpen}>
         <DialogContent>
