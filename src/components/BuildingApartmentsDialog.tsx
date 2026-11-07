@@ -88,7 +88,7 @@ export function BuildingApartmentsDialog({
   ) => {
     const { error } = await supabase
       .from('apartments')
-      .update({ [field]: value })
+      .update({ [field]: value } as any)
       .eq('id', aptId);
 
     if (error) {
