@@ -15,7 +15,7 @@ import { toast } from "sonner";
 type Team = { id: string; name: string; color: string };
 
 export default function RoundControl() {
-  const { user, isAdmin, userTeamIds } = useAuth();
+  const { isAdmin, userTeamIds } = useAuth();
   const { data: campaign } = useActiveCampaign();
   const { data: round, refetch: refetchRound } = useOpenRound(campaign?.id);
   const { data: totals, refetch: refetchTotals } = useRoundTotals(round?.id);
