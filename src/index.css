@@ -135,3 +135,14 @@ All colors MUST be HSL.
     transform: scale(1.1);
   }
 }
+
+/* Polygon drawing vertices */
+.draw-vertex {
+  background: hsl(var(--background));
+  border: 2px solid hsl(var(--primary));
+  border-radius: 50%;
+  box-shadow: 0 1px 3px hsl(var(--foreground) / 0.3);
+}
+.draw-vertex-touch { border-width: 3px; }
+.leaflet-draw-tooltip { font-size: 12px; border-radius: 6px; }
+.leaflet-editing-icon { border-radius: 50%; }
