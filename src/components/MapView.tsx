@@ -483,53 +483,8 @@ export default function MapView() {
     }
 
     if (!lassoMode) {
-      // Enable lasso mode
-      const drawControl = new L.Control.Draw({
-        draw: {
-          polygon: {
-            allowIntersection: false,
-            shapeOptions: {
-              color: '#3b82f6',
-              fillOpacity: 0.2,
-            },
-          },
-          polyline: false,
-          rectangle: false,
-          circle: false,
-          marker: false,
-          circlemarker: false,
-        },
-        edit: {
-          featureGroup: drawnItemsRef.current,
-          remove: false,
-        },
-      });
-
-      mapRef.current.addControl(drawControl);
-      drawControlRef.current = drawControl;
-
-      // Handle polygon creation
-      mapRef.current.on(L.Draw.Event.CREATED, (e: any) => {
-        const layer = e.layer;
-        drawnItemsRef.current?.addLayer(layer);
-
-        // Get polygon bounds
-        const polygon = layer.getLatLngs()[0];
-        console.log("Polygon created:", polygon);
-        console.log("Total addresses:", addresses.length);
-
-        // Find markers inside polygon
-        const selected: string[] = [];
-        addresses.forEach((address) => {
-          const point = L.latLng(address.latitude, address.longitude);
-          const isInside = isPointInPolygon(point, polygon);
-          console.log(`Address ${address.street_name} ${address.street_number}: lat=${address.latitude}, lng=${address.longitude}, inside=${isInside}`);
-          if (isInside) {
-            selected.push(address.id);
-          }
-        });
-
-        console.log("Selected addresses:", selected.length, selected);
+      startPolygonDraw('#3b82f6', (_layer, polygon) => {
+        const selected = addressesInPolygon(addressesRef.current, polygon).map((a) => a.id);
         setSelectedAddresses(selected);
         if (selected.length > 0) {
           toast.info(`${selected.length} adresse(s) sélectionnée(s)`);
@@ -538,16 +493,10 @@ export default function MapView() {
           drawnItemsRef.current?.clearLayers();
         }
       });
-
       setLassoMode(true);
-      toast.info("Mode lasso activé - Dessinez un polygone");
+      toast.info("Cliquez sur la carte pour placer les points, puis cliquez sur le premier point pour fermer");
     } else {
-      // Disable lasso mode
-      if (drawControlRef.current) {
-        mapRef.current.removeControl(drawControlRef.current);
-        drawControlRef.current = null;
-      }
-      mapRef.current.off(L.Draw.Event.CREATED);
+      stopPolygonDraw();
       drawnItemsRef.current?.clearLayers();
       setLassoMode(false);
       setSelectedAddresses([]);
@@ -574,49 +523,14 @@ export default function MapView() {
     }
 
     if (!zoneMode) {
-      // Enable zone mode
-      const drawControl = new L.Control.Draw({
-        draw: {
-          polygon: {
-            allowIntersection: false,
-            shapeOptions: {
-              color: '#10B981',
-              fillOpacity: 0.3,
-            },
-          },
-          polyline: false,
-          rectangle: false,
-          circle: false,
-          marker: false,
-          circlemarker: false,
-        },
-        edit: {
-          featureGroup: drawnItemsRef.current,
-          remove: false,
-        },
-      });
-
-      mapRef.current.addControl(drawControl);
-      drawControlRef.current = drawControl;
-
-      // Handle polygon creation for zone
-      mapRef.current.on(L.Draw.Event.CREATED, (e: any) => {
-        const layer = e.layer;
-        const polygon = layer.getLatLngs()[0];
+      startPolygonDraw('#10B981', (_layer, polygon) => {
         setDrawnZonePolygon(polygon);
         setShowCreateZone(true);
-        drawnItemsRef.current?.addLayer(layer);
       });
-
       setZoneMode(true);
-      toast.info("Mode zone activé - Dessinez un polygone pour définir une zone");
+      toast.info("Cliquez sur la carte pour placer les points, puis cliquez sur le premier point pour fermer la zone");
     } else {
-      // Disable zone mode
-      if (drawControlRef.current) {
-        mapRef.current.removeControl(drawControlRef.current);
-        drawControlRef.current = null;
-      }
-      mapRef.current.off(L.Draw.Event.CREATED);
+      stopPolygonDraw();
       drawnItemsRef.current?.clearLayers();
       setZoneMode(false);
       setDrawnZonePolygon(null);
@@ -653,24 +567,8 @@ export default function MapView() {
     polygon.addTo(drawnItemsRef.current);
     editingZoneLayerRef.current = polygon;
 
-    // Enable editing with leaflet-draw
-    const drawControl = new L.Control.Draw({
-      draw: {
-        polygon: false,
-        polyline: false,
-        rectangle: false,
-        circle: false,
-        marker: false,
-        circlemarker: false,
-      },
-      edit: {
-        featureGroup: drawnItemsRef.current,
-        remove: false,
-      },
-    });
-
-    mapRef.current.addControl(drawControl);
-    drawControlRef.current = drawControl;
+    // Enable vertex editing directly (no toolbar)
+    (polygon as any).editing?.enable();
 
     // Fit bounds to the polygon
     mapRef.current.fitBounds(polygon.getBounds(), { padding: [50, 50] });
@@ -694,17 +592,13 @@ export default function MapView() {
       if (error) throw error;
 
       // Reassign addresses: find all addresses in the new boundary
-      const addressesInZone = addresses.filter((addr) =>
-        isPointInPolygon(L.latLng(addr.latitude, addr.longitude), latlngs)
-      );
-
-      if (addressesInZone.length > 0) {
-        const addressIds = addressesInZone.map(addr => addr.id);
+      const addressesInZone = addressesInPolygon(addressesRef.current, latlngs);
+      const addressIds = addressesInZone.map(addr => addr.id);
+      for (let i = 0; i < addressIds.length; i += 300) {
         const { error: updateError } = await supabase
           .from("addresses")
           .update({ zone_id: editingZone.id })
-          .in("id", addressIds);
-
+          .in("id", addressIds.slice(i, i + 300));
         if (updateError) throw updateError;
       }
 
@@ -727,6 +621,7 @@ export default function MapView() {
 
     // Clear editing layer
     if (editingZoneLayerRef.current) {
+      (editingZoneLayerRef.current as any).editing?.disable();
       drawnItemsRef.current?.removeLayer(editingZoneLayerRef.current);
       editingZoneLayerRef.current = null;
     }
