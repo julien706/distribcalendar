@@ -12,6 +12,7 @@ import ZoneManagement from "@/components/ZoneManagement";
 import UserManagement from "@/components/UserManagement";
 import StatisticsView from "@/components/StatisticsView";
 import LogsView from "@/components/LogsView";
+import CampaignManagement from "@/components/CampaignManagement";
 import { ArrowLeft, Upload, LogOut, Trash2, Key, Download, Shield, RotateCcw, Users, AlertTriangle, Settings, BarChart3, FileText, Copy } from "lucide-react";
 import {
   AlertDialog,
@@ -331,7 +332,7 @@ export default function Admin() {
         )}
 
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className={`grid w-full mb-4 ${isAdmin ? 'grid-cols-4' : 'grid-cols-1'}`}>
+          <TabsList className={`grid w-full mb-4 ${isAdmin ? 'grid-cols-5' : 'grid-cols-1'}`}>
             <TabsTrigger value="general">
               <Settings className="h-4 w-4 mr-2" />
               Général
@@ -341,6 +342,10 @@ export default function Admin() {
                 <TabsTrigger value="statistics">
                   <BarChart3 className="h-4 w-4 mr-2" />
                   Statistiques
+                </TabsTrigger>
+                <TabsTrigger value="campaigns">
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Années
                 </TabsTrigger>
                 <TabsTrigger value="logs">
                   <FileText className="h-4 w-4 mr-2" />
@@ -353,6 +358,12 @@ export default function Admin() {
               </>
             )}
           </TabsList>
+
+          {isAdmin && (
+            <TabsContent value="campaigns" className="space-y-4">
+              <CampaignManagement />
+            </TabsContent>
+          )}
 
           <TabsContent value="general" className="space-y-4">
             {isAdmin && <UserManagement />}

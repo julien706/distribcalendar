@@ -1,3 +1,4 @@
+import RoundControl from "@/components/RoundControl";
 import { useState, useEffect, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ export default function Index() {
             </div>
           </div>
           <h2 className="text-xs sm:text-sm text-muted-foreground">Gestion distribution des calendriers</h2>
+          <div className="mt-2"><RoundControl /></div>
         </div>
       </header>
 
