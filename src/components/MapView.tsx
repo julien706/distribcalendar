@@ -114,6 +114,53 @@ export default function MapView() {
   const [showEditZone, setShowEditZone] = useState(false);
   const [editingZoneShape, setEditingZoneShape] = useState(false);
   const editingZoneLayerRef = useRef<L.Polygon | null>(null);
+  const drawHandlerRef = useRef<any>(null);
+  const addressesRef = useRef<Address[]>([]);
+  useEffect(() => { addressesRef.current = addresses; }, [addresses]);
+
+  // Start a polygon drawing directly (no toolbar), with clear styling
+  const startPolygonDraw = (color: string, onCreated: (layer: L.Polygon, latlngs: L.LatLng[]) => void) => {
+    const map = mapRef.current;
+    if (!map) return;
+    stopPolygonDraw();
+    const handler = new (L as any).Draw.Polygon(map, {
+      allowIntersection: false,
+      showArea: false,
+      guidelineDistance: 12,
+      maxGuideLineLength: 2000,
+      drawError: { color: '#ef4444', message: 'Les côtés ne doivent pas se croiser' },
+      icon: new L.DivIcon({ className: 'draw-vertex', iconSize: new L.Point(12, 12) }),
+      touchIcon: new L.DivIcon({ className: 'draw-vertex draw-vertex-touch', iconSize: new L.Point(20, 20) }),
+      shapeOptions: { color, weight: 3, fillColor: color, fillOpacity: 0.2, interactive: false },
+    });
+    map.off(L.Draw.Event.CREATED);
+    map.on(L.Draw.Event.CREATED, (e: any) => {
+      const layer = e.layer as L.Polygon;
+      const latlngs = (layer.getLatLngs()[0] as L.LatLng[]) || [];
+      drawnItemsRef.current?.clearLayers();
+      drawnItemsRef.current?.addLayer(layer);
+      onCreated(layer, latlngs);
+    });
+    handler.enable();
+    drawHandlerRef.current = handler;
+  };
+
+  const stopPolygonDraw = () => {
+    drawHandlerRef.current?.disable?.();
+    drawHandlerRef.current = null;
+    mapRef.current?.off(L.Draw.Event.CREATED);
+  };
+
+  // Fast point-in-polygon using a bbox prefilter
+  const addressesInPolygon = (list: Address[], latlngs: L.LatLng[]) => {
+    if (latlngs.length < 3) return [];
+    const b = L.latLngBounds(latlngs);
+    return list.filter((a) => {
+      if (a.latitude == null || a.longitude == null) return false;
+      const p = L.latLng(a.latitude, a.longitude);
+      return b.contains(p) && isPointInPolygon(p, latlngs);
+    });
+  };
   
   // Building management state
   const [buildingDialogOpen, setBuildingDialogOpen] = useState(false);
